@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+
+set -ex
+
+REQUIRED_BUNDLER_VERSION=">= 1.6.2"
+
+function install_bundler() {
+  gem install bundler --conservative --version "$REQUIRED_BUNDLER_VERSION"
+}
+
+function install_gems() {
+  bundle check || bundle
+}
+
+function run_specs() {
+  bundle exec rake
+}
+
+install_bundler
+install_gems
+run_specs

@@ -1,0 +1,11 @@
+language: ruby
+ruby:
+ - 2.1.5
+ - 2.2.3
+
+test_command: 'script/ci'
+
+targets:
+  - type: unit
+    glob: 'spec/**/*_spec.rb'
+    workers: 1

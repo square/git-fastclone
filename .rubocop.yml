@@ -1,0 +1,10 @@
+inherit_from: .rubocop_todo.yml
+
+AllCops:
+  Include:
+    - Rakefile
+
+Style/FileName:
+  Exclude:
+    - 'bin/git-fastclone'
+    - 'lib/git-fastclone.rb'
