@@ -9,14 +9,16 @@ Why fastclone?
 --------------
 Doing lots of repeated checkouts on a specific machine?
 
-| Repository | 1st Clone | 2nd Clone |
-| -----------|-----------|-----------|
-| angular.js |    21s    |     3s    |
-| bootstrap  |    32s    |     2s    |
-| gradle     |    26s    |     8s    |
-| linux      |    5m 13s |     1m 14s|
-| react.js   |    12s    |     3s    |
-| tensorflow |    19s    |     4s    |
+| Repository | 1st Fastclone | 2nd Fastclone | git clone | cp -R |
+| -----------|---------------|---------------|-------------------|
+| angular.js |    8s         |     3s        | 6s        | 0.5s  |
+| bootstrap  |    26s        |     3s        | 11s       | 0.2s  |
+| gradle     |    25s        |     9s        | 19s       | 6.2s  |
+| linux      |    4m 53s     |     1m 6s     | 3m 51s    | 29s   |
+| react.js   |    18s        |     3s        | 8s        | 0.5s  |
+| tensorflow |    19s        |     4s        | 8s        | 1.5s  |
+
+Above times captured using `time` without verbose mode.
 
 
 What does it do?
