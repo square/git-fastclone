@@ -121,6 +121,8 @@ module GitFastClone
 
       path = ARGV[1] || path_from_git_url(url)
 
+      fail "Clone destination #{path} already exists!" if Dir.exist?(path)
+
       self.reference_dir = ENV['REFERENCE_REPO_DIR'] || DEFAULT_REFERENCE_REPO_DIR
       FileUtils.mkdir_p(reference_dir)
 
