@@ -1,5 +1,7 @@
 git-fastclone
 =============
+[![Build Status](https://travis-ci.org/square/git-fastclone.svg?branch=master)](https://travis-ci.org/square/git-fastclone)
+
 git-fastclone is git clone --recursive on steroids.
 
 
@@ -11,8 +13,10 @@ Doing lots of repeated checkouts on a specific machine?
 | -----------|-----------|-----------|
 | angular.js |    21s    |     3s    |
 | bootstrap  |    32s    |     2s    |
-| dotfiles   |    11s    |     3s    |
 | gradle     |    26s    |     8s    |
+| linux      |    5m 13s |     1m 14s|
+| react.js   |    12s    |     3s    |
+| tensorflow |    19s    |     4s    |
 
 
 What does it do?
@@ -63,9 +67,13 @@ Before accepting any pull requests, we need you to sign an [Individual Contribut
 Acknowledgements
 ----------------
 [thoughtbot/cocaine][2] - jyurek and collaborators
+
 [robolson][3]
+
 [ianchesal][4]
+
 [mtauraso][5]
+
 [chriseckhardt][6]
 
 
