@@ -10,7 +10,7 @@ Why fastclone?
 Doing lots of repeated checkouts on a specific machine?
 
 | Repository | 1st Fastclone | 2nd Fastclone | git clone | cp -R |
-| -----------|---------------|---------------|-------------------|
+| -----------|---------------|---------------|-----------|-------|
 | angular.js |    8s         |     3s        | 6s        | 0.5s  |
 | bootstrap  |    26s        |     3s        | 11s       | 0.2s  |
 | gradle     |    25s        |     9s        | 19s       | 6.2s  |
