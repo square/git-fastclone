@@ -31,6 +31,8 @@ It aggressively updates these mirrors from origin and then clones from the mirro
 directory of your choosing. It always works recursively and multithreaded to get your checkout up as
 fast as possible.
 
+Detailed explanation [here][1].
+
 
 Usage
 -----
@@ -62,21 +64,21 @@ requests.
 When submitting code, please make every effort to follow existing conventions and style in order to
 keep the code as readable as possible.
 
-Before accepting any pull requests, we need you to sign an [Individual Contributor Agreement][1]
+Before accepting any pull requests, we need you to sign an [Individual Contributor Agreement][2]
 (Google form).
 
 
 Acknowledgements
 ----------------
-[thoughtbot/cocaine][2] - jyurek and collaborators
+[thoughtbot/cocaine][3] - jyurek and collaborators
 
-[robolson][3]
+[robolson][4]
 
-[ianchesal][4]
+[ianchesal][5]
 
-[mtauraso][5]
+[mtauraso][6]
 
-[chriseckhardt][6]
+[chriseckhardt][7]
 
 
 License
@@ -95,10 +97,10 @@ License
     See the License for the specific language governing permissions and
     limitations under the License.
 
-
-[1]: https://docs.google.com/a/squareup.com/forms/d/13WR8m5uZ2nAkJH41k7GdVBXAAbzDk00vxtEYjd6Imzg/viewform?formkey=dDViT2xzUHAwRkI3X3k5Z0lQM091OGc6MQ&ndplr=1
-[2]: https://github.com/thoughtbot/cocaine
-[3]: https://github.com/robolson
-[4]: https://github.com/ianchesal
-[5]: https://github.com/mtauraso
-[6]: https://github.com/chriseckhardt
+[1]: https://corner.squareup.com/2015/11/fastclone.html
+[2]: https://docs.google.com/a/squareup.com/forms/d/13WR8m5uZ2nAkJH41k7GdVBXAAbzDk00vxtEYjd6Imzg/viewform?formkey=dDViT2xzUHAwRkI3X3k5Z0lQM091OGc6MQ&ndplr=1
+[3]: https://github.com/thoughtbot/cocaine
+[4]: https://github.com/robolson
+[5]: https://github.com/ianchesal
+[6]: https://github.com/mtauraso
+[7]: https://github.com/chriseckhardt
