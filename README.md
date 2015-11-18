@@ -1,6 +1,7 @@
 git-fastclone
 =============
 [![Build Status](https://travis-ci.org/square/git-fastclone.svg?branch=master)](https://travis-ci.org/square/git-fastclone)
+[![Gem Version](https://badge.fury.io/rb/git-fastclone.svg)](http://badge.fury.io/rb/git-fastclone)
 
 git-fastclone is git clone --recursive on steroids.
 
