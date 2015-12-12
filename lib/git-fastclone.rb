@@ -247,6 +247,11 @@ module GitFastClone
     # moment means we only need to synchronize our own threads in case a single
     # submodule url is included twice via multiple dependency paths
     def with_git_mirror(url)
+      if url.lstrip.start_with?('ext::')
+        logger.info("Skipping #{url} for security purpose (CVE-2015-7545)") if logger
+        return
+      end
+
       update_reference_repo(url, true)
 
       # Sometimes remote updates involve re-packing objects on a different thread
