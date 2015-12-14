@@ -1,5 +1,8 @@
 git-fastclone
 =============
+
+[![Twitter: @longboardcat13](https://img.shields.io/badge/contact-@longboardcat13-blue.svg?style=flat)](https://twitter.com/longboardcat13)
+[![License](https://img.shields.io/badge/license-Apache-green.svg?style=flat)](https://github.com/square/git-fastclone/blob/master/LICENSE)
 [![Build Status](https://travis-ci.org/square/git-fastclone.svg?branch=master)](https://travis-ci.org/square/git-fastclone)
 [![Gem Version](https://badge.fury.io/rb/git-fastclone.svg)](http://badge.fury.io/rb/git-fastclone)
 
