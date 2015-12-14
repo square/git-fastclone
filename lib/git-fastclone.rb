@@ -60,6 +60,8 @@ module GitFastClone
 
     DEFAULT_REFERENCE_REPO_DIR = '/var/tmp/git-fastclone/reference'
 
+    DEFAULT_GIT_ALLOW_PROTOCOL = 'file:git:http:https:ssh'
+
     attr_accessor :reference_dir, :prefetch_submodules, :reference_mutex, :reference_updated,
                   :options, :logger, :abs_clone_path, :using_local_repo
 
@@ -90,6 +92,8 @@ module GitFastClone
     def run
       url, path, options = parse_inputs
       logger.info("Cloning #{url} to #{path}") if logger
+      Cocaine::CommandLine.environment['GIT_ALLOW_PROTOCOL'] =
+        ENV['GIT_ALLOW_PROTOCOL'] || DEFAULT_GIT_ALLOW_PROTOCOL
       clone(url, options[:branch], path)
     end
 
@@ -247,11 +251,6 @@ module GitFastClone
     # moment means we only need to synchronize our own threads in case a single
     # submodule url is included twice via multiple dependency paths
     def with_git_mirror(url)
-      if url.lstrip.start_with?('ext::')
-        logger.info("Skipping #{url} for security purpose (CVE-2015-7545)") if logger
-        return
-      end
-
       update_reference_repo(url, true)
 
       # Sometimes remote updates involve re-packing objects on a different thread
