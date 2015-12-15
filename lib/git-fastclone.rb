@@ -114,7 +114,10 @@ module GitFastClone
         end
       end.parse!
 
-      fail usage unless ARGV[0]
+      unless ARGV[0]
+        STDERR.puts usage
+        exit(129)
+      end
 
       if Dir.exist?(ARGV[0])
         url = File.expand_path ARGV[0]
