@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    git-fastclone (1.0.4)
+    git-fastclone (1.0.5)
       cocaine
 
 GEM
