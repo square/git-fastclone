@@ -150,7 +150,7 @@ module GitFastClone
 
       # Only checkout if we're changing branches to a non-default branch
       if rev
-        Dir.chdir(src_dir) do
+        Dir.chdir(File.join(abs_clone_path, src_dir)) do
           Cocaine::CommandLine.new('git checkout', '--quiet :rev').run(rev: "#{rev}")
         end
       end
@@ -169,13 +169,12 @@ module GitFastClone
       threads = []
       submodule_url_list = []
 
-      Dir.chdir("#{File.join(abs_clone_path, pwd)}") do
-        Cocaine::CommandLine.new('git submodule', 'init').run.split("\n").each do |line|
-          submodule_path, submodule_url = parse_update_info(line)
-          submodule_url_list << submodule_url
+      Cocaine::CommandLine.new('cd', ':path; git submodule init')
+        .run(path: File.join(abs_clone_path, pwd)).split("\n").each do |line|
+        submodule_path, submodule_url = parse_update_info(line)
+        submodule_url_list << submodule_url
 
-          thread_update_submodule(submodule_url, submodule_path, threads, pwd)
-        end
+        thread_update_submodule(submodule_url, submodule_path, threads, pwd)
       end
 
       update_submodule_reference(url, submodule_url_list)
@@ -247,9 +246,7 @@ module GitFastClone
           .run(url: "#{url}", mirror: "#{mirror}")
       end
 
-      Dir.chdir("#{mirror}") do
-        Cocaine::CommandLine.new('git remote', 'update --prune').run
-      end
+      Cocaine::CommandLine.new('cd', ':path; git remote update --prune').run(path: mirror)
 
       reference_updated[repo_name] = true
 
