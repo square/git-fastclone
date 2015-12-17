@@ -144,12 +144,16 @@ module GitFastClone
       initial_time = Time.now
 
       with_git_mirror(url) do |mirror|
-        Cocaine::CommandLine.new("git clone --quiet --reference '#{mirror}' '#{url}'" \
-          " '#{File.join(abs_clone_path, src_dir)}'").run
+        Cocaine::CommandLine.new('git clone', '--quiet --reference :mirror :url :path')
+          .run(mirror: "#{mirror}", url: "#{url}", path: "#{File.join(abs_clone_path, src_dir)}")
       end
 
       # Only checkout if we're changing branches to a non-default branch
-      Dir.chdir(src_dir) { Cocaine::CommandLine.new("git checkout --quiet '#{rev}'").run } if rev
+      if rev
+        Dir.chdir(src_dir) do
+          Cocaine::CommandLine.new('git checkout', '--quiet :rev').run(rev: "#{rev}")
+        end
+      end
 
       update_submodules(src_dir, url)
 
@@ -165,12 +169,13 @@ module GitFastClone
       threads = []
       submodule_url_list = []
 
-      Cocaine::CommandLine.new("cd '#{File.join(abs_clone_path, pwd)}'; git submodule init").run
-        .split("\n").each do |line|
-        submodule_path, submodule_url = parse_update_info(line)
-        submodule_url_list << submodule_url
+      Dir.chdir("#{File.join(abs_clone_path, pwd)}") do
+        Cocaine::CommandLine.new('git submodule', 'init').run.split("\n").each do |line|
+          submodule_path, submodule_url = parse_update_info(line)
+          submodule_url_list << submodule_url
 
-        thread_update_submodule(submodule_url, submodule_path, threads, pwd)
+          thread_update_submodule(submodule_url, submodule_path, threads, pwd)
+        end
       end
 
       update_submodule_reference(url, submodule_url_list)
@@ -180,9 +185,10 @@ module GitFastClone
     def thread_update_submodule(submodule_url, submodule_path, threads, pwd)
       threads << Thread.new do
         with_git_mirror(submodule_url) do |mirror|
-          Cocaine::CommandLine
-            .new("cd '#{File.join(abs_clone_path, pwd)}'; git submodule update --quiet --reference"\
-              " '#{mirror}' '#{submodule_path}'").run
+          Dir.chdir("#{File.join(abs_clone_path, pwd)}") do
+            Cocaine::CommandLine.new('git submodule', 'update --quiet --reference :mirror :path')
+              .run(mirror: "#{mirror}", path: "#{submodule_path}")
+          end
         end
 
         update_submodules(File.join(pwd, submodule_path), submodule_url)
@@ -237,10 +243,13 @@ module GitFastClone
     # Stores the fact that our repo has been updated
     def store_updated_repo(url, mirror, repo_name, fail_hard)
       unless Dir.exist?(mirror)
-        Cocaine::CommandLine.new("git clone --mirror '#{url}' '#{mirror}'").run
+        Cocaine::CommandLine.new('git clone', '--mirror :url :mirror')
+          .run(url: "#{url}", mirror: "#{mirror}")
       end
 
-      Cocaine::CommandLine.new("cd '#{mirror}'; git remote update --prune").run
+      Dir.chdir("#{mirror}") do
+        Cocaine::CommandLine.new('git remote', 'update --prune').run
+      end
 
       reference_updated[repo_name] = true
 

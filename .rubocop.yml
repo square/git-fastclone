@@ -8,3 +8,6 @@ Style/FileName:
   Exclude:
     - 'bin/git-fastclone'
     - 'lib/git-fastclone.rb'
+
+Metrics/ClassLength:
+  Max: 10000
