@@ -16,6 +16,7 @@ require 'optparse'
 require 'fileutils'
 require 'logger'
 require 'cocaine'
+require 'colorize'
 
 # Contains helper module UrlHelper and execution class GitFastClone::Runner
 module GitFastClone
@@ -63,7 +64,7 @@ module GitFastClone
     DEFAULT_GIT_ALLOW_PROTOCOL = 'file:git:http:https:ssh'
 
     attr_accessor :reference_dir, :prefetch_submodules, :reference_mutex, :reference_updated,
-                  :options, :logger, :abs_clone_path, :using_local_repo
+                  :options, :logger, :abs_clone_path, :using_local_repo, :verbose
 
     def initialize
       # Prefetch reference repos for submodules we've seen before
@@ -87,11 +88,13 @@ module GitFastClone
       self.abs_clone_path = Dir.pwd
 
       self.using_local_repo = false
+
+      self.verbose = false
     end
 
     def run
       url, path, options = parse_inputs
-      logger.info("Cloning #{url} to #{path}") if logger
+      puts 'Cloning'.bold + " #{url} to #{File.join(abs_clone_path, path)}"
       Cocaine::CommandLine.environment['GIT_ALLOW_PROTOCOL'] =
         ENV['GIT_ALLOW_PROTOCOL'] || DEFAULT_GIT_ALLOW_PROTOCOL
       clone(url, options[:branch], path)
@@ -109,6 +112,7 @@ module GitFastClone
           options[:branch] = branch
         end
         opts.on('-v', '--verbose', 'Verbose mode') do
+          self.verbose = true
           self.logger = Logger.new(STDOUT)
           Cocaine::CommandLine.logger = logger
         end
@@ -129,7 +133,7 @@ module GitFastClone
       path = ARGV[1] || path_from_git_url(url)
 
       if Dir.exist?(path)
-        fail "Clone destination #{File.join(abs_clone_path, path)} already exists!"
+        fail "Clone destination #{File.join(abs_clone_path, path)} already exists!".red
       end
 
       self.reference_dir = ENV['REFERENCE_REPO_DIR'] || DEFAULT_REFERENCE_REPO_DIR
@@ -158,13 +162,13 @@ module GitFastClone
       update_submodules(src_dir, url)
 
       final_time = Time.now
-      logger.info("Checkout of #{url} took #{final_time - initial_time}s") if logger
+      puts "Checkout of #{src_dir} took #{final_time - initial_time}s".green
     end
 
     def update_submodules(pwd, url)
       return unless File.exist?(File.join(abs_clone_path, pwd, '.gitmodules'))
 
-      logger.info('Updating submodules') if logger
+      puts 'Updating submodules...' if verbose
 
       threads = []
       submodule_url_list = []
@@ -251,7 +255,7 @@ module GitFastClone
       reference_updated[repo_name] = true
 
     rescue Cocaine::ExitStatusError => e
-      raise e if fail_hard
+      raise e.red if fail_hard
     end
 
     # This command will create and bring the mirror up-to-date on-demand,

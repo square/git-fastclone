@@ -69,7 +69,7 @@ describe GitFastClone::Runner do
       allow(cocaine_commandline_double).to receive(:run) {}
       allow(Cocaine::CommandLine).to receive(:new) { cocaine_commandline_double }
 
-      expect(Time).to receive(:now).twice
+      expect(Time).to receive(:now).twice { 0 }
       expect(Cocaine::CommandLine).to receive(:new)
       expect(cocaine_commandline_double).to receive(:run)
 
