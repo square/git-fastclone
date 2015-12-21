@@ -11,3 +11,9 @@ Style/FileName:
 
 Metrics/ClassLength:
   Max: 10000
+
+Metrics/LineLength:
+  Max: 100
+
+Metrics/MethodLength:
+  Max: 2000

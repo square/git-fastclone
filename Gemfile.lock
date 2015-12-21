@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    git-fastclone (1.0.6)
+    git-fastclone (1.0.7)
       cocaine
 
 GEM
@@ -20,6 +20,7 @@ GEM
       activesupport (>= 3.0)
     cocaine (0.5.8)
       climate_control (>= 0.0.3, < 1.0)
+    colorize (0.7.7)
     diff-lcs (1.2.5)
     i18n (0.7.0)
     json (1.8.3)
@@ -59,6 +60,7 @@ PLATFORMS
 
 DEPENDENCIES
   bundler
+  colorize
   git-fastclone!
   logger
   rake
@@ -66,4 +68,4 @@ DEPENDENCIES
   rubocop
 
 BUNDLED WITH
-   1.11.0
+   1.11.2
