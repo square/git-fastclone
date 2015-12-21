@@ -31,4 +31,5 @@ Gem::Specification.new do |gem|
   gem.license       = 'Apache'
 
   gem.add_runtime_dependency 'cocaine'
+  gem.add_runtime_dependency 'colorize'
 end

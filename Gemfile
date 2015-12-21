@@ -8,6 +8,5 @@ end
 
 gem 'rspec'
 gem 'logger'
-gem 'colorize'
 
 gemspec
