@@ -16,7 +16,6 @@ require 'optparse'
 require 'fileutils'
 require 'logger'
 require 'cocaine'
-require 'colorize'
 
 # Contains helper module UrlHelper and execution class GitFastClone::Runner
 module GitFastClone
@@ -57,6 +56,8 @@ module GitFastClone
   # index will be incrementally updated. This prevents a large amount of data
   # copying.
   class Runner
+    require 'colorize'
+
     include GitFastClone::UrlHelper
 
     DEFAULT_REFERENCE_REPO_DIR = '/var/tmp/git-fastclone/reference'
@@ -93,8 +94,11 @@ module GitFastClone
     end
 
     def run
+      require_relative './git-fastclone/version'
+      puts "git-fastclone #{GitFastCloneVersion::VERSION}".yellow
+
       url, path, options = parse_inputs
-      puts 'Cloning'.bold + " #{url} to #{File.join(abs_clone_path, path)}"
+      puts 'Cloning'.bold + " #{path_from_git_url(url)} to #{File.join(abs_clone_path, path)}"
       Cocaine::CommandLine.environment['GIT_ALLOW_PROTOCOL'] =
         ENV['GIT_ALLOW_PROTOCOL'] || DEFAULT_GIT_ALLOW_PROTOCOL
       clone(url, options[:branch], path)
@@ -114,6 +118,9 @@ module GitFastClone
         opts.on('-v', '--verbose', 'Verbose mode') do
           self.verbose = true
           self.logger = Logger.new(STDOUT)
+          logger.formatter = proc do |_severity, _datetime, _progname, msg|
+            "#{msg}\n"
+          end
           Cocaine::CommandLine.logger = logger
         end
       end.parse!
