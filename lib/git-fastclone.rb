@@ -262,7 +262,7 @@ module GitFastClone
       reference_updated[repo_name] = true
 
     rescue Cocaine::ExitStatusError => e
-      raise e.red if fail_hard
+      raise e if fail_hard
     end
 
     # This command will create and bring the mirror up-to-date on-demand,
