@@ -27,7 +27,7 @@ Gem::Specification.new do |gem|
   gem.executables   = gem.files.grep(%r{^bin/}).map{ |f| File.basename(f) }
   gem.test_files    = gem.files.grep(%r{^(test|spec|features)/})
   gem.require_paths = ['lib']
-  gem.homepage      = 'https://github.com/square/git-fastclone'
+  gem.homepage      = 'http://square.github.io/git-fastclone/'
   gem.license       = 'Apache'
 
   gem.add_runtime_dependency 'cocaine'
