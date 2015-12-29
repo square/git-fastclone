@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset='utf-8'>
+    <meta http-equiv="X-UA-Compatible" content="chrome=1">
+    <meta name="viewport" content="width=640">
+
+    <link rel="stylesheet" href="stylesheets/core.css" media="screen">
+    <link rel="stylesheet" href="stylesheets/mobile.css" media="handheld, only screen and (max-device-width:640px)">
+    <link rel="stylesheet" href="stylesheets/github-light.css">
+
+    <script type="text/javascript" src="javascripts/modernizr.js"></script>
+    <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/1.7.1/jquery.min.js"></script>
+    <script type="text/javascript" src="javascripts/headsmart.min.js"></script>
+    <script type="text/javascript">
+      $(document).ready(function () {
+        $('#main_content').headsmart()
+      })
+    </script>
+    <title>Git-fastclone by square</title>
+  </head>
+
+  <body>
+    <a id="forkme_banner" href="https://github.com/square/git-fastclone">View on GitHub</a>
+    <div class="shell">
+
+      <header>
+        <span class="ribbon-outer">
+          <span class="ribbon-inner">
+            <h1>Git-fastclone</h1>
+            <h2>git clone --recursive on steroids</h2>
+          </span>
+          <span class="left-tail"></span>
+          <span class="right-tail"></span>
+        </span>
+      </header>
+
+      <section id="downloads">
+        <span class="inner">
+          <a href="https://github.com/square/git-fastclone/zipball/master" class="zip"><em>download</em> .ZIP</a><a href="https://github.com/square/git-fastclone/tarball/master" class="tgz"><em>download</em> .TGZ</a>
+        </span>
+      </section>
+
+
+      <span class="banner-fix"></span>
+
+
+      <section id="main_content">
+        <h1>
+<a id="git-fastclone" class="anchor" href="#git-fastclone" aria-hidden="true"><span class="octicon octicon-link"></span></a>git-fastclone</h1>
+
+<p><a href="https://twitter.com/longboardcat13"><img src="https://img.shields.io/badge/contact-@longboardcat13-blue.svg?style=flat" alt="Twitter: @longboardcat13"></a>
+<a href="https://github.com/square/git-fastclone/blob/master/LICENSE"><img src="https://img.shields.io/badge/license-Apache-green.svg?style=flat" alt="License"></a>
+<a href="https://travis-ci.org/square/git-fastclone"><img src="https://travis-ci.org/square/git-fastclone.svg?branch=master" alt="Build Status"></a>
+<a href="http://badge.fury.io/rb/git-fastclone"><img src="https://badge.fury.io/rb/git-fastclone.svg" alt="Gem Version"></a></p>
+
+<p>git-fastclone is git clone --recursive on steroids.</p>
+
+<h2>
+<a id="why-fastclone" class="anchor" href="#why-fastclone" aria-hidden="true"><span class="octicon octicon-link"></span></a>Why fastclone?</h2>
+
+<p>Doing lots of repeated checkouts on a specific machine?</p>
+
+<table>
+<thead>
+<tr>
+<th>Repository</th>
+<th>1st Fastclone</th>
+<th>2nd Fastclone</th>
+<th>git clone</th>
+<th>cp -R</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>angular.js</td>
+<td>8s</td>
+<td>3s</td>
+<td>6s</td>
+<td>0.5s</td>
+</tr>
+<tr>
+<td>bootstrap</td>
+<td>26s</td>
+<td>3s</td>
+<td>11s</td>
+<td>0.2s</td>
+</tr>
+<tr>
+<td>gradle</td>
+<td>25s</td>
+<td>9s</td>
+<td>19s</td>
+<td>6.2s</td>
+</tr>
+<tr>
+<td>linux</td>
+<td>4m 53s</td>
+<td>1m 6s</td>
+<td>3m 51s</td>
+<td>29s</td>
+</tr>
+<tr>
+<td>react.js</td>
+<td>18s</td>
+<td>3s</td>
+<td>8s</td>
+<td>0.5s</td>
+</tr>
+<tr>
+<td>tensorflow</td>
+<td>19s</td>
+<td>4s</td>
+<td>8s</td>
+<td>1.5s</td>
+</tr>
+</tbody>
+</table>
+
+<p>Above times captured using <code>time</code> without verbose mode.</p>
+
+<h2>
+<a id="what-does-it-do" class="anchor" href="#what-does-it-do" aria-hidden="true"><span class="octicon octicon-link"></span></a>What does it do?</h2>
+
+<p>It creates a reference repo with <code>git clone --mirror</code> in <code>/var/tmp/git-fastclone/reference</code> for each
+repository and git submodule linked in the main repo. You can control where it puts these by
+changing the <code>REFERENCE_REPO_DIR</code> environment variable.</p>
+
+<p>It aggressively updates these mirrors from origin and then clones from the mirrors into the
+directory of your choosing. It always works recursively and multithreaded to get your checkout up as
+fast as possible.</p>
+
+<p>Detailed explanation <a href="https://corner.squareup.com/2015/11/fastclone.html">here</a>.</p>
+
+<h2>
+<a id="usage" class="anchor" href="#usage" aria-hidden="true"><span class="octicon octicon-link"></span></a>Usage</h2>
+
+<pre><code>gem install git-fastclone
+git fastclone [options] &lt;git-repo-url&gt;
+
+-b, --branch &lt;branch&gt;   Clone a specific branch
+-v, --verbose           Shows more info
+</code></pre>
+
+<p>Change the default <code>REFERENCE_REPO_DIR</code> environment variable if necessary.</p>
+
+<p>Cygwin users need to add <code>~/bin</code> to PATH.</p>
+
+<h2>
+<a id="how-to-test" class="anchor" href="#how-to-test" aria-hidden="true"><span class="octicon octicon-link"></span></a>How to test?</h2>
+
+<p>Manual testing:</p>
+
+<pre><code>ruby -Ilib bin/git-fastclone &lt;git url&gt;
+</code></pre>
+
+<p>Compatible with Travis and Kochiku.</p>
+
+<h2>
+<a id="contributing" class="anchor" href="#contributing" aria-hidden="true"><span class="octicon octicon-link"></span></a>Contributing</h2>
+
+<p>If you would like to contribute to git-fastclone, you can fork the repository and send us pull
+requests.</p>
+
+<p>When submitting code, please make every effort to follow existing conventions and style in order to
+keep the code as readable as possible.</p>
+
+<p>Before accepting any pull requests, we need you to sign an <a href="https://docs.google.com/a/squareup.com/forms/d/13WR8m5uZ2nAkJH41k7GdVBXAAbzDk00vxtEYjd6Imzg/viewform?formkey=dDViT2xzUHAwRkI3X3k5Z0lQM091OGc6MQ&amp;ndplr=1">Individual Contributor Agreement</a>
+(Google form).</p>
+
+<h2>
+<a id="acknowledgements" class="anchor" href="#acknowledgements" aria-hidden="true"><span class="octicon octicon-link"></span></a>Acknowledgements</h2>
+
+<p><a href="https://github.com/thoughtbot/cocaine">thoughtbot/cocaine</a> - jyurek and collaborators</p>
+
+<p><a href="https://github.com/robolson">robolson</a></p>
+
+<p><a href="https://github.com/ianchesal">ianchesal</a></p>
+
+<p><a href="https://github.com/mtauraso">mtauraso</a></p>
+
+<p><a href="https://github.com/chriseckhardt">chriseckhardt</a></p>
+
+<h2>
+<a id="license" class="anchor" href="#license" aria-hidden="true"><span class="octicon octicon-link"></span></a>License</h2>
+
+<pre><code>Copyright 2015 Square Inc.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+</code></pre>
+      </section>
+
+      <footer>
+        <span class="ribbon-outer">
+          <span class="ribbon-inner">
+            <p>this project by <a href="https://github.com/square">square</a> can be found on <a href="https://github.com/square/git-fastclone">GitHub</a></p>
+          </span>
+          <span class="left-tail"></span>
+          <span class="right-tail"></span>
+        </span>
+        <p>Generated with <a href="https://pages.github.com">GitHub Pages</a> using Merlot</p>
+        <span class="octocat"></span>
+      </footer>
+
+    </div>
+
+    
+  </body>
+</html>
