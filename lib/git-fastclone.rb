@@ -217,10 +217,8 @@ module GitFastClone
     def thread_update_submodule(submodule_url, submodule_path, threads, pwd)
       threads << Thread.new do
         with_git_mirror(submodule_url) do |mirror|
-          Dir.chdir("#{File.join(abs_clone_path, pwd)}") do
-            Cocaine::CommandLine.new('git submodule', 'update --quiet --reference :mirror :path')
-              .run(mirror: "#{mirror}", path: "#{submodule_path}")
-          end
+          Cocaine::CommandLine.new('cd', ':dir; git submodule update --quiet --reference :mirror :path')
+            .run(dir: "#{File.join(abs_clone_path, pwd)}", mirror: "#{mirror}", path: "#{submodule_path}")
         end
 
         update_submodules(File.join(pwd, submodule_path), submodule_url)
