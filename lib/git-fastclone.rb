@@ -65,7 +65,7 @@ module GitFastClone
     DEFAULT_GIT_ALLOW_PROTOCOL = 'file:git:http:https:ssh'
 
     attr_accessor :reference_dir, :prefetch_submodules, :reference_mutex, :reference_updated,
-                  :options, :logger, :abs_clone_path, :using_local_repo, :verbose
+                  :options, :logger, :abs_clone_path, :using_local_repo, :verbose, :color
 
     def initialize
       # Prefetch reference repos for submodules we've seen before
@@ -91,14 +91,22 @@ module GitFastClone
       self.using_local_repo = false
 
       self.verbose = false
+
+      self.color = false
     end
 
     def run
-      require_relative './git-fastclone/version'
-      puts "git-fastclone #{GitFastCloneVersion::VERSION}".yellow
-
       url, path, options = parse_inputs
-      puts 'Cloning'.bold + " #{path_from_git_url(url)} to #{File.join(abs_clone_path, path)}"
+
+      require_relative './git-fastclone/version'
+      msg = "git-fastclone #{GitFastCloneVersion::VERSION}"
+      if color
+        puts msg.yellow
+      else
+        puts msg
+      end
+
+      puts "Cloning #{path_from_git_url(url)} to #{File.join(abs_clone_path, path)}"
       Cocaine::CommandLine.environment['GIT_ALLOW_PROTOCOL'] =
         ENV['GIT_ALLOW_PROTOCOL'] || DEFAULT_GIT_ALLOW_PROTOCOL
       clone(url, options[:branch], path)
@@ -112,9 +120,11 @@ module GitFastClone
       OptionParser.new do |opts|
         opts.banner = usage
         options[:branch] = nil
+
         opts.on('-b', '--branch BRANCH', 'Checkout this branch rather than the default') do |branch|
           options[:branch] = branch
         end
+
         opts.on('-v', '--verbose', 'Verbose mode') do
           self.verbose = true
           self.logger = Logger.new(STDOUT)
@@ -122,6 +132,10 @@ module GitFastClone
             "#{msg}\n"
           end
           Cocaine::CommandLine.logger = logger
+        end
+
+        opts.on('-c', '--color', 'Display colored output') do
+          self.color = true
         end
       end.parse!
 
@@ -140,7 +154,9 @@ module GitFastClone
       path = ARGV[1] || path_from_git_url(url)
 
       if Dir.exist?(path)
-        fail "Clone destination #{File.join(abs_clone_path, path)} already exists!".red
+        msg = "Clone destination #{File.join(abs_clone_path, path)} already exists!"
+        fail msg.red if color
+        fail msg
       end
 
       self.reference_dir = ENV['REFERENCE_REPO_DIR'] || DEFAULT_REFERENCE_REPO_DIR
@@ -169,7 +185,13 @@ module GitFastClone
       update_submodules(src_dir, url)
 
       final_time = Time.now
-      puts "Checkout of #{src_dir} took #{final_time - initial_time}s".green
+
+      msg = "Checkout of #{src_dir} took #{final_time - initial_time}s"
+      if color
+        puts msg.green
+      else
+        puts msg
+      end
     end
 
     def update_submodules(pwd, url)
