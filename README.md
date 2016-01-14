@@ -45,6 +45,7 @@ Usage
 
     -b, --branch <branch>   Clone a specific branch
     -v, --verbose           Shows more info
+    -c, --color             Pretty colors!
 
 Change the default `REFERENCE_REPO_DIR` environment variable if necessary.
 
