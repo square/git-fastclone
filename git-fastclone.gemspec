@@ -18,7 +18,7 @@ require 'git-fastclone/version'
 Gem::Specification.new do |gem|
   gem.name          = 'git-fastclone'
   gem.version       = GitFastCloneVersion::VERSION
-  gem.date          = '2015-09-15'
+  gem.date          = Date.today.to_s
   gem.summary       = %q(git-clone --recursive on steroids!)
   gem.description   = %q(A git command that uses reference repositories and threading to quickly and recursively clone repositories with many nested submodules)
   gem.authors       = ['Michael Tauraso', 'James Chang']
