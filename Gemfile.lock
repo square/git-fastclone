@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    git-fastclone (1.0.14)
+    git-fastclone (1.0.15)
       cocaine
       colorize
 
