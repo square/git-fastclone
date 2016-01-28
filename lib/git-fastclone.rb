@@ -270,7 +270,8 @@ module GitFastClone
       end
     end
 
-    # Stores the fact that our repo has been updated
+    # Creates or updates the mirror repo then stores an indication
+    # that this repo has been updated on this run of fastclone
     def store_updated_repo(url, mirror, repo_name, fail_hard)
       unless Dir.exist?(mirror)
         Cocaine::CommandLine.new('git clone', '--mirror :url :mirror')
@@ -282,6 +283,10 @@ module GitFastClone
       reference_updated[repo_name] = true
 
     rescue Cocaine::ExitStatusError => e
+      # To avoid corruption of the cache, if we failed to update or check out we remove
+      # the cache directory entirely. This may cause the current clone to fail, but if the
+      # underlying error from git is transient it will not affect future clones.
+      FileUtils.remove_entry_secure(mirror, force: true)
       raise e if fail_hard
     end
 
