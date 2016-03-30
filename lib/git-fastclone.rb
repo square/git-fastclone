@@ -16,6 +16,7 @@ require 'optparse'
 require 'fileutils'
 require 'logger'
 require 'cocaine'
+require 'timeout'
 
 # Contains helper module UrlHelper and execution class GitFastClone::Runner
 module GitFastClone
@@ -32,7 +33,7 @@ module GitFastClone
     module_function :parse_update_info
 
     def reference_repo_name(url)
-      "#{url.gsub(%r{^.*://}, '').gsub(/^[^@]*@/, '').tr('/', '-').tr(':', '-')}"
+      url.gsub(%r{^.*://}, '').gsub(/^[^@]*@/, '').tr('/', '-').tr(':', '-').to_s
     end
     module_function :reference_repo_name
 
@@ -49,6 +50,12 @@ module GitFastClone
       "#{reference_repo_dir(url, reference_dir, using_local_repo)}:submodules.txt"
     end
     module_function :reference_repo_submodule_file
+
+    def reference_repo_lock_file(url, reference_dir, using_local_repo)
+      lock_file_name = "#{reference_repo_dir(url, reference_dir, using_local_repo)}:lock"
+      File.open(lock_file_name, File::RDWR | File::CREAT, 0644)
+    end
+    module_function :reference_repo_lock_file
   end
 
   # Spawns one thread per submodule, and updates them in parallel. They will be
@@ -60,12 +67,13 @@ module GitFastClone
 
     include GitFastClone::UrlHelper
 
-    DEFAULT_REFERENCE_REPO_DIR = '/var/tmp/git-fastclone/reference'
+    DEFAULT_REFERENCE_REPO_DIR = '/var/tmp/git-fastclone/reference'.freeze
 
-    DEFAULT_GIT_ALLOW_PROTOCOL = 'file:git:http:https:ssh'
+    DEFAULT_GIT_ALLOW_PROTOCOL = 'file:git:http:https:ssh'.freeze
 
-    attr_accessor :reference_dir, :prefetch_submodules, :reference_mutex, :reference_updated,
-                  :options, :logger, :abs_clone_path, :using_local_repo, :verbose, :color
+    attr_accessor :reference_dir, :prefetch_submodules, :reference_updated, :reference_mutex,
+                  :options, :logger, :abs_clone_path, :using_local_repo, :verbose, :color,
+                  :flock_timeout_secs
 
     def initialize
       # Prefetch reference repos for submodules we've seen before
@@ -93,6 +101,8 @@ module GitFastClone
       self.verbose = false
 
       self.color = false
+
+      self.flock_timeout_secs = 0
     end
 
     def run
@@ -112,7 +122,7 @@ module GitFastClone
       clone(url, options[:branch], path)
     end
 
-    def parse_inputs
+    def parse_options
       usage = 'Usage: git fastclone [options] <git-url> [path]'
 
       # One option --branch=<branch>  We're not as brittle as clone. That branch
@@ -137,7 +147,16 @@ module GitFastClone
         opts.on('-c', '--color', 'Display colored output') do
           self.color = true
         end
+
+        opts.on('--lock-timeout N', 'Timeout in seconds to acquire a lock on any reference repo.
+                Default is 0 which waits indefinitely.') do |timeout_secs|
+          self.flock_timeout_secs = timeout_secs
+        end
       end.parse!
+    end
+
+    def parse_inputs
+      parse_options
 
       unless ARGV[0]
         STDERR.puts usage
@@ -172,13 +191,15 @@ module GitFastClone
 
       with_git_mirror(url) do |mirror|
         Cocaine::CommandLine.new('git clone', '--quiet --reference :mirror :url :path')
-          .run(mirror: "#{mirror}", url: "#{url}", path: "#{File.join(abs_clone_path, src_dir)}")
+          .run(mirror: mirror.to_s,
+               url: url.to_s,
+               path: File.join(abs_clone_path, src_dir).to_s)
       end
 
       # Only checkout if we're changing branches to a non-default branch
       if rev
         Dir.chdir(File.join(abs_clone_path, src_dir)) do
-          Cocaine::CommandLine.new('git checkout', '--quiet :rev').run(rev: "#{rev}")
+          Cocaine::CommandLine.new('git checkout', '--quiet :rev').run(rev: rev.to_s)
         end
       end
 
@@ -218,14 +239,34 @@ module GitFastClone
       threads << Thread.new do
         with_git_mirror(submodule_url) do |mirror|
           Cocaine::CommandLine.new('cd', ':dir; git submodule update --quiet --reference :mirror :path')
-            .run(dir: "#{File.join(abs_clone_path, pwd)}", mirror: "#{mirror}", path: "#{submodule_path}")
+            .run(dir: File.join(abs_clone_path, pwd).to_s,
+                 mirror: mirror.to_s,
+                 path: submodule_path.to_s)
         end
 
         update_submodules(File.join(pwd, submodule_path), submodule_url)
       end
     end
 
-    def with_reference_repo_lock(url)
+    def with_reference_repo_lock(url, &block)
+      # Sane POSIX implementations remove exclusive flocks when a process is terminated or killed
+      # We block here indefinitely. Waiting for other git-fastclone processes to release the lock.
+      # With the default timeout of 0 we will wait forever, this can be overridden on the command line.
+      lockfile = reference_repo_lock_file(url, reference_dir, using_local_repo)
+      Timeout.timeout(flock_timeout_secs) { lockfile.flock(File::LOCK_EX) }
+      with_reference_repo_thread_lock(url, &block)
+    ensure
+      # Not strictly necessary to do this unlock as an ensure. If ever exception is caught outside this
+      # primitive, ensure protection may come in handy.
+      lockfile.flock(File::LOCK_UN)
+      lockfile.close
+    end
+
+    def with_reference_repo_thread_lock(url)
+      # We also need thread level locking because pre-fetch means multiple threads can
+      # attempt to update the same repository from a single git-fastclone process
+      # file locks in posix are tracked per process, not per userland thread.
+      # This gives us the equivalent of pthread_mutex around these accesses.
       reference_mutex[reference_repo_name(url)].synchronize do
         yield
       end
@@ -275,7 +316,7 @@ module GitFastClone
     def store_updated_repo(url, mirror, repo_name, fail_hard)
       unless Dir.exist?(mirror)
         Cocaine::CommandLine.new('git clone', '--mirror :url :mirror')
-          .run(url: "#{url}", mirror: "#{mirror}")
+          .run(url: url.to_s, mirror: mirror.to_s)
       end
 
       Cocaine::CommandLine.new('cd', ':path; git remote update --prune').run(path: mirror)
