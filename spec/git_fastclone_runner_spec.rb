@@ -31,7 +31,7 @@ describe GitFastClone::Runner do
   end
 
   # Modified ARGV, watch out
-  ARGV = ['ssh://git@git.com/git-fastclone.git', 'test_reference_dir'].freeze
+  ARGV = ['ssh://git@git.com/git-fastclone.git', 'test_reference_dir']
 
   let(:yielded) { [] }
 
