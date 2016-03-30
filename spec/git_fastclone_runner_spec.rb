@@ -22,16 +22,16 @@ describe GitFastClone::Runner do
   let(:test_reference_repo_dir) { '/var/tmp/git-fastclone/reference/test_reference_dir' }
   let(:placeholder_arg) { 'PH' }
 
-  let(:lockfile) {
-      lockfile = double()
-      expect(lockfile).to receive(:flock).with(File::LOCK_EX).once
-      expect(lockfile).to receive(:flock).with(File::LOCK_UN).once
-      expect(lockfile).to receive(:close).once
-      lockfile
-  }
+  let(:lockfile) do
+    lockfile = double
+    expect(lockfile).to receive(:flock).with(File::LOCK_EX).once
+    expect(lockfile).to receive(:flock).with(File::LOCK_UN).once
+    expect(lockfile).to receive(:close).once
+    lockfile
+  end
 
   # Modified ARGV, watch out
-  ARGV = ['ssh://git@git.com/git-fastclone.git', 'test_reference_dir']
+  ARGV = ['ssh://git@git.com/git-fastclone.git', 'test_reference_dir'].freeze
 
   let(:yielded) { [] }
 
@@ -50,7 +50,7 @@ describe GitFastClone::Runner do
   end
 
   describe '.run' do
-    let(:options) { {:branch => placeholder_arg} }
+    let(:options) { { branch: placeholder_arg } }
 
     it 'should run with the correct args' do
       allow(subject).to receive(:parse_inputs) { [placeholder_arg, placeholder_arg, options] }
@@ -66,7 +66,7 @@ describe GitFastClone::Runner do
       subject.options = {}
       allow(FileUtils).to receive(:mkdir_p) {}
 
-      expect(subject.parse_inputs).to eq([test_url_valid, test_reference_dir, {:branch=>nil}])
+      expect(subject.parse_inputs).to eq([test_url_valid, test_reference_dir, { branch: nil }])
     end
   end
 
@@ -127,7 +127,7 @@ describe GitFastClone::Runner do
 
       expect do
         subject.with_reference_repo_lock(test_url_valid) do
-          raise placeholder_arg
+          fail placeholder_arg
         end
       end.to raise_error(placeholder_arg)
     end
