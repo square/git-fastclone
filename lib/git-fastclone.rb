@@ -16,6 +16,7 @@ require 'optparse'
 require 'fileutils'
 require 'logger'
 require 'cocaine'
+require 'timeout'
 
 # Contains helper module UrlHelper and execution class GitFastClone::Runner
 module GitFastClone
@@ -49,6 +50,11 @@ module GitFastClone
       "#{reference_repo_dir(url, reference_dir, using_local_repo)}:submodules.txt"
     end
     module_function :reference_repo_submodule_file
+
+    def reference_repo_lock_file(url, reference_dir, using_local_repo)
+      File::open("#{reference_repo_dir(url, reference_dir, using_local_repo)}:lock", File::RDWR|File::CREAT, 0644)
+    end
+    module_function :reference_repo_lock_file
   end
 
   # Spawns one thread per submodule, and updates them in parallel. They will be
@@ -64,8 +70,9 @@ module GitFastClone
 
     DEFAULT_GIT_ALLOW_PROTOCOL = 'file:git:http:https:ssh'
 
-    attr_accessor :reference_dir, :prefetch_submodules, :reference_mutex, :reference_updated,
-                  :options, :logger, :abs_clone_path, :using_local_repo, :verbose, :color
+    attr_accessor :reference_dir, :prefetch_submodules, :reference_updated, :reference_mutex,
+                  :options, :logger, :abs_clone_path, :using_local_repo, :verbose, :color,
+                  :flock_timeout_secs
 
     def initialize
       # Prefetch reference repos for submodules we've seen before
@@ -93,6 +100,8 @@ module GitFastClone
       self.verbose = false
 
       self.color = false
+
+      self.flock_timeout_secs = 0
     end
 
     def run
@@ -136,6 +145,10 @@ module GitFastClone
 
         opts.on('-c', '--color', 'Display colored output') do
           self.color = true
+        end
+
+        opts.on('--lock-timeout N', 'Timeout in seconds to acquire a lock on any reference repo. Default is 0, which waits indefinitely.') do |timeout_secs|
+          self.flock_timeout_secs = timeout_secs
         end
       end.parse!
 
@@ -225,7 +238,27 @@ module GitFastClone
       end
     end
 
-    def with_reference_repo_lock(url)
+    def with_reference_repo_lock(url, &block)
+      begin
+        # Sane POSIX implementations remove exclusive flocks when a process is terminated or killed
+        # We block here indefinitely. Waiting for other git-fastclone processes to release the lock.
+        # With the default timeout of 0 we will wait forever, this can be overridden on the command line.
+        lockfile = reference_repo_lock_file(url, reference_dir, using_local_repo)
+        Timeout::timeout(flock_timeout_secs) { lockfile.flock(File::LOCK_EX) }
+        with_reference_repo_thread_lock(url, &block)
+      ensure
+        # Not strictly necessary to do this unlock as an ensure. If ever exception is caught outside this
+        # primitive, ensure protection may come in handy.
+        lockfile.flock(File::LOCK_UN)
+        lockfile.close
+      end
+    end
+
+    def with_reference_repo_thread_lock(url)
+      # We also need thread level locking because pre-fetch means multiple threads can
+      # attempt to update the same repository from a single git-fastclone process
+      # file locks in posix are tracked per process, not per userland thread.
+      # This gives us the equivalent of pthread_mutex around these accesses.
       reference_mutex[reference_repo_name(url)].synchronize do
         yield
       end

@@ -22,6 +22,14 @@ describe GitFastClone::Runner do
   let(:test_reference_repo_dir) { '/var/tmp/git-fastclone/reference/test_reference_dir' }
   let(:placeholder_arg) { 'PH' }
 
+  let(:lockfile) {
+      lockfile = double()
+      expect(lockfile).to receive(:flock).with(File::LOCK_EX).once
+      expect(lockfile).to receive(:flock).with(File::LOCK_UN).once
+      expect(lockfile).to receive(:close).once
+      lockfile
+  }
+
   # Modified ARGV, watch out
   ARGV = ['ssh://git@git.com/git-fastclone.git', 'test_reference_dir']
 
@@ -104,12 +112,24 @@ describe GitFastClone::Runner do
     it 'should acquire a lock' do
       allow(Mutex).to receive(:synchronize)
       expect(Mutex).to respond_to(:synchronize)
+      expect(subject).to receive(:reference_repo_lock_file).and_return(lockfile)
 
       subject.with_reference_repo_lock(test_url_valid) do
         yielded << test_url_valid
       end
 
       expect(yielded).to eq([test_url_valid])
+    end
+    it 'should un-flock on thrown exception' do
+      allow(Mutex).to receive(:synchronize)
+      expect(Mutex).to respond_to(:synchronize)
+      expect(subject).to receive(:reference_repo_lock_file).and_return(lockfile)
+
+      expect do
+        subject.with_reference_repo_lock(test_url_valid) do
+          raise placeholder_arg
+        end
+      end.to raise_error(placeholder_arg)
     end
   end
 
@@ -130,6 +150,7 @@ describe GitFastClone::Runner do
         allow(subject).to receive(:reference_repo_name) {}
         allow(subject).to receive(:reference_repo_submodule_file) {}
         expect(File).to receive(:open)
+        expect(subject).to receive(:reference_repo_lock_file).and_return(lockfile)
 
         subject.update_submodule_reference(placeholder_arg, [placeholder_arg, placeholder_arg])
       end
@@ -141,6 +162,7 @@ describe GitFastClone::Runner do
       it 'should grab the children immediately and then store' do
         expect(subject).to receive(:prefetch).once
         expect(subject).to receive(:store_updated_repo).once
+        expect(subject).to receive(:reference_repo_lock_file).and_return(lockfile)
 
         allow(File).to receive(:exist?) { true }
         subject.prefetch_submodules = true
@@ -153,6 +175,7 @@ describe GitFastClone::Runner do
       it 'should store the updated repo' do
         expect(subject).not_to receive(:prefetch)
         expect(subject).to receive(:store_updated_repo).once
+        expect(subject).to receive(:reference_repo_lock_file).and_return(lockfile)
 
         allow(File).to receive(:exist?) { true }
         subject.prefetch_submodules = false
@@ -180,6 +203,7 @@ describe GitFastClone::Runner do
       it 'should store' do
         placeholder_hash[placeholder_arg] = false
         expect(subject).to receive(:store_updated_repo)
+        expect(subject).to receive(:reference_repo_lock_file).and_return(lockfile)
 
         allow(subject).to receive(:reference_repo_name) { placeholder_arg }
         subject.reference_updated = placeholder_hash
@@ -244,6 +268,7 @@ describe GitFastClone::Runner do
     it 'should yield properly' do
       allow(subject).to receive(:update_reference_repo) {}
       expect(subject).to receive(:reference_repo_dir)
+      expect(subject).to receive(:reference_repo_lock_file).and_return(lockfile)
 
       subject.with_git_mirror(test_url_valid) do
         yielded << test_url_valid
