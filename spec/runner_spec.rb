@@ -1,4 +1,4 @@
-# Copyright 2015 Square Inc.
+# Copyright 2016 Square Inc.
 
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -16,11 +16,15 @@ require 'spec_helper'
 require 'git-fastclone'
 
 describe GitFastClone::Runner do
-  let(:test_url_valid) { 'ssh://git@git.com/git-fastclone.git' }
-  let(:test_url_invalid) { 'ssh://git@git.com/git-fastclone' }
-  let(:test_reference_dir) { 'test_reference_dir' }
-  let(:test_reference_repo_dir) { '/var/tmp/git-fastclone/reference/test_reference_dir' }
+  include TestManager
+  track_shell_actions
+
+  let(:url_valid) { 'ssh://git@git.com/git-fastclone.git' }
+  let(:local_repo) { 'spec' }
+  let(:path) { 'path' }
+  let(:test_reference_repo_dir) { '/var/tmp/git-fastclone/reference/path' }
   let(:placeholder_arg) { 'PH' }
+  let(:flock_timeout) { 5 }
 
   let(:lockfile) do
     lockfile = double
@@ -31,115 +35,133 @@ describe GitFastClone::Runner do
   end
 
   # Modified ARGV, watch out
-  ARGV = ['ssh://git@git.com/git-fastclone.git', 'test_reference_dir']
+  before do
+    ARGV = [url_valid, path, '--verbose', '--color', '--lock-timeout', flock_timeout].freeze
+    mock_commands
+  end
+
+  after(:all) do
+    FileUtils.rm('PH:lock') if File.exist?('PH:lock')
+  end
 
   let(:yielded) { [] }
 
   describe '.initialize' do
-    it 'should initialize properly' do
-      stub_const('GitFastClone::DEFAULT_REFERENCE_REPO_DIR', 'new_dir')
+    it 'parses args' do
+      expect(subject.url).to eq(url_valid)
+      expect(subject.path).to eq(path)
+      expect(subject.flock_timeout_secs).to eq(flock_timeout)
+      expect(subject.branch).to be_nil
+      expect(subject.color).to be_truthy
+      expect(subject.verbose).to be_truthy
+    end
 
-      expect(Hash).to respond_to(:new).with(2).arguments
-      expect(GitFastClone::DEFAULT_REFERENCE_REPO_DIR).to eq('new_dir')
-      expect(subject.prefetch_submodules).to eq(true)
-      expect(subject.reference_mutex).to eq({})
-      expect(subject.reference_updated).to eq({})
-      expect(subject.options).to eq({})
-      expect(subject.logger).to eq(nil)
+    context 'local repo' do
+      it 'indicates using_local_repo' do
+        ARGV = [local_repo].freeze
+        expect(subject.using_local_repo).to be_truthy
+      end
+    end
+
+    context 'verbose' do
+      it 'creates a logger' do
+        expect(Cocaine::CommandLine.logger).to be_instance_of(Logger)
+      end
     end
   end
 
-  describe '.run' do
-    let(:options) { { branch: placeholder_arg } }
-
-    it 'should run with the correct args' do
-      allow(subject).to receive(:parse_inputs) { [placeholder_arg, placeholder_arg, options] }
-      expect(subject).to receive(:clone).with(placeholder_arg, placeholder_arg, placeholder_arg)
-
+  describe '#run' do
+    it 'runs' do
+      expect(subject).to receive(:clone).with(url_valid, nil, path)
       subject.run
     end
   end
 
-  describe '.parse_inputs' do
-    it 'should print the proper inputs' do
-      subject.reference_dir = test_reference_dir
-      subject.options = {}
-      allow(FileUtils).to receive(:mkdir_p) {}
+  describe '#clone' do
+    context 'destination empty' do
+      let(:steps) do
+        [{ cmd: ['git clone', '--mirror :url :mirror'], opts: {} },
+         { cmd: ['cd', ':path; git remote update --prune'], opts: {} },
+         { cmd: ['git clone', '--quiet --reference :mirror :url :path'], opts: {} }]
+      end
 
-      expect(subject.parse_inputs).to eq([test_url_valid, test_reference_dir, { branch: nil }])
+      it 'updates mirror' do
+        allow(subject).to receive(:reference_repo_lock_file).and_return(double(flock: nil, close: nil))
+        expect(subject).to receive(:update_submodules).with(path, url_valid)
+        subject.send(:clone, url_valid, nil, path)
+        expect(actions).to eq(steps)
+      end
+    end
+
+    context 'destination exists' do
+      it 'raises' do
+        expect { subject.send(:clone, url_valid, nil, local_repo) }.to raise_error
+        expect(actions).to be_empty
+      end
     end
   end
 
-  describe '.clone' do
-    it 'should clone correctly' do
-      cocaine_commandline_double = double('new_cocaine_commandline')
-      allow(subject).to receive(:with_git_mirror) {}
-      allow(cocaine_commandline_double).to receive(:run) {}
-      allow(Cocaine::CommandLine).to receive(:new) { cocaine_commandline_double }
+  describe '#update_submodules' do
+    context 'no submodules' do
+      it 'returns' do
+        subject.send(:update_submodules, subject.abs_clone_path, subject.url)
+        expect(Thread).not_to receive(:new)
+        expect(actions).to be_empty
+      end
+    end
 
-      expect(Time).to receive(:now).twice { 0 }
-      expect(Cocaine::CommandLine).to receive(:new)
-      expect(cocaine_commandline_double).to receive(:run)
+    context 'with submodules' do
+      let(:steps) { [{ cmd: ['cd', ':path; git submodule init'], opts: {} }] }
 
-      subject.clone(placeholder_arg, placeholder_arg, '.')
+      it 'should correctly update submodules' do
+        expect(subject).to receive(:update_submodule_reference).with(url_valid, [])
+        allow(File).to receive(:exist?) { true }
+        subject.send(:update_submodules, subject.abs_clone_path, subject.url)
+        expect(actions).to eq(steps)
+      end
     end
   end
 
-  describe '.update_submodules' do
-    it 'should return if no submodules' do
-      subject.update_submodules(placeholder_arg, placeholder_arg)
-      allow(File).to receive(:exist?) { false }
-
-      expect(Thread).not_to receive(:new)
-    end
-
-    it 'should correctly update submodules' do
-      expect(subject).to receive(:update_submodule_reference)
-
-      allow(File).to receive(:exist?) { true }
-      subject.update_submodules('.', placeholder_arg)
-    end
-  end
-
-  describe '.thread_update_submodule' do
-    it 'should update correctly' do
+  describe '#thread_update_submodule' do
+    it 'updates submodules' do
       pending('need to figure out how to test this')
-      fail
+      raise
     end
   end
 
-  describe '.with_reference_repo_lock' do
+  describe '#with_reference_repo_lock' do
     it 'should acquire a lock' do
       allow(Mutex).to receive(:synchronize)
       expect(Mutex).to respond_to(:synchronize)
       expect(subject).to receive(:reference_repo_lock_file).and_return(lockfile)
 
-      subject.with_reference_repo_lock(test_url_valid) do
-        yielded << test_url_valid
+      subject.send(:with_reference_repo_lock, url_valid) do
+        yielded << url_valid
       end
 
-      expect(yielded).to eq([test_url_valid])
+      expect(yielded).to eq([url_valid])
     end
+
     it 'should un-flock on thrown exception' do
       allow(Mutex).to receive(:synchronize)
       expect(Mutex).to respond_to(:synchronize)
       expect(subject).to receive(:reference_repo_lock_file).and_return(lockfile)
 
       expect do
-        subject.with_reference_repo_lock(test_url_valid) do
-          fail placeholder_arg
+        subject.send(:with_reference_repo_lock, url_valid) do
+          raise placeholder_arg
         end
       end.to raise_error(placeholder_arg)
     end
   end
 
-  describe '.update_submodule_reference' do
+  describe '#update_submodule_reference' do
     context 'when we have an empty submodule list' do
       it 'should return' do
         expect(subject).not_to receive(:with_reference_repo_lock)
 
         subject.prefetch_submodules = true
-        subject.update_submodule_reference(placeholder_arg, [])
+        subject.send(:update_submodule_reference, placeholder_arg, [])
       end
     end
 
@@ -152,12 +174,12 @@ describe GitFastClone::Runner do
         expect(File).to receive(:open)
         expect(subject).to receive(:reference_repo_lock_file).and_return(lockfile)
 
-        subject.update_submodule_reference(placeholder_arg, [placeholder_arg, placeholder_arg])
+        subject.send(:update_submodule_reference, placeholder_arg, [placeholder_arg, placeholder_arg])
       end
     end
   end
 
-  describe '.update_reference_repo' do
+  describe '#update_reference_repo' do
     context 'when prefetch is on' do
       it 'should grab the children immediately and then store' do
         expect(subject).to receive(:prefetch).once
@@ -167,7 +189,7 @@ describe GitFastClone::Runner do
         allow(File).to receive(:exist?) { true }
         subject.prefetch_submodules = true
         subject.reference_dir = placeholder_arg
-        subject.update_reference_repo(test_url_valid, false)
+        subject.send(:update_reference_repo, url_valid, false)
       end
     end
 
@@ -180,7 +202,7 @@ describe GitFastClone::Runner do
         allow(File).to receive(:exist?) { true }
         subject.prefetch_submodules = false
         subject.reference_dir = placeholder_arg
-        subject.update_reference_repo(placeholder_arg, false)
+        subject.send(:update_reference_repo, placeholder_arg, false)
       end
     end
 
@@ -195,7 +217,7 @@ describe GitFastClone::Runner do
         allow(subject).to receive(:reference_repo_dir) { placeholder_arg }
         subject.reference_updated = placeholder_hash
         subject.prefetch_submodules = false
-        subject.update_reference_repo(placeholder_arg, false)
+        subject.send(:update_reference_repo, placeholder_arg, false)
       end
     end
 
@@ -209,30 +231,30 @@ describe GitFastClone::Runner do
         subject.reference_updated = placeholder_hash
         subject.reference_dir = placeholder_arg
         subject.prefetch_submodules = false
-        subject.update_reference_repo(placeholder_arg, false)
+        subject.send(:update_reference_repo, placeholder_arg, false)
       end
     end
   end
 
-  describe '.prefetch' do
+  describe '#prefetch' do
     it 'should go through the submodule file properly' do
       expect(Thread).to receive(:new).exactly(3).times
 
       allow(File).to receive(:readlines) { %w(1 2 3) }
       subject.prefetch_submodules = true
-      subject.prefetch(placeholder_arg)
+      subject.send(:prefetch, placeholder_arg)
     end
   end
 
-  describe '.store_updated_repo' do
+  describe '#store_updated_repo' do
     context 'when fail_hard is true' do
       it 'should raise a Cocaine error' do
         cocaine_commandline_double = double('new_cocaine_commandline')
-        allow(cocaine_commandline_double).to receive(:run) { fail Cocaine::ExitStatusError }
+        allow(cocaine_commandline_double).to receive(:run) { raise Cocaine::ExitStatusError }
         allow(Cocaine::CommandLine).to receive(:new) { cocaine_commandline_double }
         expect(FileUtils).to receive(:remove_entry_secure).with(placeholder_arg, force: true)
         expect do
-          subject.store_updated_repo(placeholder_arg, placeholder_arg, placeholder_arg, true)
+          subject.send(:store_updated_repo, placeholder_arg, placeholder_arg, placeholder_arg, true)
         end.to raise_error(Cocaine::ExitStatusError)
       end
     end
@@ -240,12 +262,12 @@ describe GitFastClone::Runner do
     context 'when fail_hard is false' do
       it 'should not raise a cocaine error' do
         cocaine_commandline_double = double('new_cocaine_commandline')
-        allow(cocaine_commandline_double).to receive(:run) { fail Cocaine::ExitStatusError }
+        allow(cocaine_commandline_double).to receive(:run) { raise Cocaine::ExitStatusError }
         allow(Cocaine::CommandLine).to receive(:new) { cocaine_commandline_double }
         expect(FileUtils).to receive(:remove_entry_secure).with(placeholder_arg, force: true)
 
         expect do
-          subject.store_updated_repo(placeholder_arg, placeholder_arg, placeholder_arg, false)
+          subject.send(:store_updated_repo, placeholder_arg, placeholder_arg, placeholder_arg, false)
         end.not_to raise_error
       end
     end
@@ -259,7 +281,7 @@ describe GitFastClone::Runner do
       allow(Dir).to receive(:chdir) {}
 
       subject.reference_updated = placeholder_hash
-      subject.store_updated_repo(placeholder_arg, placeholder_arg, placeholder_arg, false)
+      subject.send(:store_updated_repo, placeholder_arg, placeholder_arg, placeholder_arg, false)
       expect(subject.reference_updated).to eq(placeholder_arg => true)
     end
   end
@@ -270,11 +292,11 @@ describe GitFastClone::Runner do
       expect(subject).to receive(:reference_repo_dir)
       expect(subject).to receive(:reference_repo_lock_file).and_return(lockfile)
 
-      subject.with_git_mirror(test_url_valid) do
-        yielded << test_url_valid
+      subject.send(:with_git_mirror, url_valid) do
+        yielded << url_valid
       end
 
-      expect(yielded).to eq([test_url_valid])
+      expect(yielded).to eq([url_valid])
     end
   end
 end

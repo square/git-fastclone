@@ -7,4 +7,3 @@ contained in this repository.
 
 If you believe you have discovered a security vulnerability, please follow the
 guidelines at https://hackerone.com/square-open-source
-

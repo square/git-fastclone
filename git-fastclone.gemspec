@@ -1,4 +1,4 @@
-# Copyright 2015 Square Inc.
+# Copyright 2016 Square Inc.
 
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,14 +13,14 @@
 # limitations under the License.
 
 $:.push File.expand_path("../lib", __FILE__)
-require 'git-fastclone/version'
+require 'git-fastclone/info'
 
 Gem::Specification.new do |gem|
   gem.name          = 'git-fastclone'
-  gem.version       = GitFastCloneVersion::VERSION
+  gem.version       = GitFastClone::Info::VERSION
   gem.date          = Date.today.to_s
-  gem.summary       = %q(git-clone --recursive on steroids!)
-  gem.description   = %q(A git command that uses reference repositories and threading to quickly and recursively clone repositories with many nested submodules)
+  gem.summary       = GitFastClone::Info::SUMMARY
+  gem.description   = GitFastClone::Info::DESCRIPTION
   gem.authors       = ['Michael Tauraso', 'James Chang']
   gem.email         = ['mtauraso@squareup.com', 'jchang@squareup.com']
   gem.files         = Dir['Rakefile', '{bin,lib,man,test,spec}/**/*', 'README*', 'LICENSE*'] & `git ls-files -z`.split("\0")
@@ -30,6 +30,7 @@ Gem::Specification.new do |gem|
   gem.homepage      = 'http://square.github.io/git-fastclone/'
   gem.license       = 'Apache'
 
-  gem.add_runtime_dependency 'cocaine'
-  gem.add_runtime_dependency 'colorize'
+  gem.add_runtime_dependency 'cocaine', '~> 0.5'
+  gem.add_runtime_dependency 'colorize', '~> 0.7'
+  gem.add_runtime_dependency 'docopt', '~> 0.5'
 end
