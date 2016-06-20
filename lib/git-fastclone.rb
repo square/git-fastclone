@@ -174,8 +174,8 @@ module GitFastClone
 
       if Dir.exist?(path)
         msg = "Clone destination #{File.join(abs_clone_path, path)} already exists!"
-        fail msg.red if color
-        fail msg
+        raise msg.red if color
+        raise msg
       end
 
       self.reference_dir = ENV['REFERENCE_REPO_DIR'] || DEFAULT_REFERENCE_REPO_DIR
@@ -191,9 +191,9 @@ module GitFastClone
 
       with_git_mirror(url) do |mirror|
         Cocaine::CommandLine.new('git clone', '--quiet --reference :mirror :url :path')
-          .run(mirror: mirror.to_s,
-               url: url.to_s,
-               path: File.join(abs_clone_path, src_dir).to_s)
+                            .run(mirror: mirror.to_s,
+                                 url: url.to_s,
+                                 path: File.join(abs_clone_path, src_dir).to_s)
       end
 
       # Only checkout if we're changing branches to a non-default branch
@@ -224,7 +224,7 @@ module GitFastClone
       submodule_url_list = []
 
       Cocaine::CommandLine.new('cd', ':path; git submodule init 2>&1')
-        .run(path: File.join(abs_clone_path, pwd)).split("\n").each do |line|
+                          .run(path: File.join(abs_clone_path, pwd)).split("\n").each do |line|
         submodule_path, submodule_url = parse_update_info(line)
         submodule_url_list << submodule_url
 
@@ -239,9 +239,9 @@ module GitFastClone
       threads << Thread.new do
         with_git_mirror(submodule_url) do |mirror|
           Cocaine::CommandLine.new('cd', ':dir; git submodule update --quiet --reference :mirror :path')
-            .run(dir: File.join(abs_clone_path, pwd).to_s,
-                 mirror: mirror.to_s,
-                 path: submodule_path.to_s)
+                              .run(dir: File.join(abs_clone_path, pwd).to_s,
+                                   mirror: mirror.to_s,
+                                   path: submodule_path.to_s)
         end
 
         update_submodules(File.join(pwd, submodule_path), submodule_url)
@@ -316,7 +316,7 @@ module GitFastClone
     def store_updated_repo(url, mirror, repo_name, fail_hard)
       unless Dir.exist?(mirror)
         Cocaine::CommandLine.new('git clone', '--mirror :url :mirror')
-          .run(url: url.to_s, mirror: mirror.to_s)
+                            .run(url: url.to_s, mirror: mirror.to_s)
       end
 
       Cocaine::CommandLine.new('cd', ':path; git remote update --prune').run(path: mirror)
