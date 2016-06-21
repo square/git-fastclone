@@ -104,7 +104,7 @@ describe GitFastClone::Runner do
   describe '.thread_update_submodule' do
     it 'should update correctly' do
       pending('need to figure out how to test this')
-      fail
+      raise
     end
   end
 
@@ -127,7 +127,7 @@ describe GitFastClone::Runner do
 
       expect do
         subject.with_reference_repo_lock(test_url_valid) do
-          fail placeholder_arg
+          raise placeholder_arg
         end
       end.to raise_error(placeholder_arg)
     end
@@ -228,7 +228,7 @@ describe GitFastClone::Runner do
     context 'when fail_hard is true' do
       it 'should raise a Cocaine error' do
         cocaine_commandline_double = double('new_cocaine_commandline')
-        allow(cocaine_commandline_double).to receive(:run) { fail Cocaine::ExitStatusError }
+        allow(cocaine_commandline_double).to receive(:run) { raise Cocaine::ExitStatusError }
         allow(Cocaine::CommandLine).to receive(:new) { cocaine_commandline_double }
         expect(FileUtils).to receive(:remove_entry_secure).with(placeholder_arg, force: true)
         expect do
@@ -240,7 +240,7 @@ describe GitFastClone::Runner do
     context 'when fail_hard is false' do
       it 'should not raise a cocaine error' do
         cocaine_commandline_double = double('new_cocaine_commandline')
-        allow(cocaine_commandline_double).to receive(:run) { fail Cocaine::ExitStatusError }
+        allow(cocaine_commandline_double).to receive(:run) { raise Cocaine::ExitStatusError }
         allow(Cocaine::CommandLine).to receive(:new) { cocaine_commandline_double }
         expect(FileUtils).to receive(:remove_entry_secure).with(placeholder_arg, force: true)
 
