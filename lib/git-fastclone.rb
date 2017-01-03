@@ -123,8 +123,6 @@ module GitFastClone
     end
 
     def parse_options
-      usage = 'Usage: git fastclone [options] <git-url> [path]'
-
       # One option --branch=<branch>  We're not as brittle as clone. That branch
       # can be a sha or tag and we're still okay.
       OptionParser.new do |opts|
@@ -348,6 +346,10 @@ module GitFastClone
       with_reference_repo_lock(url) do
         yield reference_repo_dir(url, reference_dir, using_local_repo)
       end
+    end
+
+    def usage
+      'Usage: git fastclone [options] <git-url> [path]'
     end
   end
 end
