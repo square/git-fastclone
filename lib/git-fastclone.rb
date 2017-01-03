@@ -223,7 +223,7 @@ module GitFastClone
       threads = []
       submodule_url_list = []
 
-      Cocaine::CommandLine.new('cd', ':path; git submodule init')
+      Cocaine::CommandLine.new('cd', ':path; git submodule init 2>&1')
         .run(path: File.join(abs_clone_path, pwd)).split("\n").each do |line|
         submodule_path, submodule_url = parse_update_info(line)
         submodule_url_list << submodule_url
