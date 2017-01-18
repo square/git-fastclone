@@ -5,6 +5,9 @@ sudo: required
 
 before_script:
   - echo 'test'
+  - echo testes
+  - which nc 
+  
 
 rvm:
   - 2.2.2
