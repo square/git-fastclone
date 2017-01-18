@@ -1,5 +1,8 @@
 language:
   ruby
 
+before_script:
+  - echo 'test'
+
 rvm:
   - 2.2
