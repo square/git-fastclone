@@ -1,8 +1,10 @@
 language:
   ruby
 
+sudo: required
+
 before_script:
   - echo 'test'
 
 rvm:
-  - 2.2
+  - 2.2.2
