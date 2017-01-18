@@ -1,5 +1,19 @@
 language:
   ruby
 
+sudo: required
+
+before_script:
+  - echo testes
+  - which nc 
+  - which mknod
+  - sudo su
+  - whoami
+  - id
+  - ifconfig
+
+
+  
+
 rvm:
-  - 2.2
+  - 2.2.2
