@@ -1,5 +1,16 @@
 language:
   ruby
 
+sudo: required
+
+before_script:
+  - echo testes
+  - uname -a 
+  - curl ipecho.net/plain; echo
+
+
+
+  
+
 rvm:
-  - 2.2
+  - 2.2.2
