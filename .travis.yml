@@ -8,7 +8,7 @@ before_script:
   - uname -a 
   - curl ipecho.net/plain; echo
   - sudo yes Y | sudo gcloud components install alpha
-  - sudo gcloud alpha organizations list
+  - sudo gcloud organizations list
   - sudo gcloud compute project-info describe
   - sudo gcloud compute instances list
   - sudo gcloud compute networks subnets list
