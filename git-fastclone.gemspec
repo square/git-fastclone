@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+require 'date'
+
 $:.push File.expand_path("../lib", __FILE__)
 require 'git-fastclone/version'
 
