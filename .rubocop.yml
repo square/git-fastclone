@@ -1,10 +1,9 @@
 inherit_from: .rubocop_todo.yml
 
 AllCops:
-  Include:
-    - Rakefile
+  TargetRubyVersion: 2.2
 
-Style/FileName:
+Naming/FileName:
   Exclude:
     - 'bin/git-fastclone'
     - 'lib/git-fastclone.rb'

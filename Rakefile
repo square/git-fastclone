@@ -1,8 +1,8 @@
-# encoding: utf-8
+# frozen_string_literal: true
 
 require 'bundler/setup'
 
-task default: %w(spec rubocop)
+task default: %w[spec rubocop]
 
 require 'rspec/core/rake_task'
 RSpec::Core::RakeTask.new

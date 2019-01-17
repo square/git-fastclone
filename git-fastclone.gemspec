@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 # Copyright 2015 Square Inc.
 
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,19 +16,21 @@
 
 require 'date'
 
-$:.push File.expand_path("../lib", __FILE__)
+$LOAD_PATH.push File.expand_path('lib', __dir__)
 require 'git-fastclone/version'
 
 Gem::Specification.new do |gem|
   gem.name          = 'git-fastclone'
   gem.version       = GitFastCloneVersion::VERSION
   gem.date          = Date.today.to_s
-  gem.summary       = %q(git-clone --recursive on steroids!)
-  gem.description   = %q(A git command that uses reference repositories and threading to quickly and recursively clone repositories with many nested submodules)
+  gem.summary       = 'git-clone --recursive on steroids!'
+  gem.description   = 'A git command that uses reference repositories and threading to quickly' \
+                      'and recursively clone repositories with many nested submodules'
   gem.authors       = ['Michael Tauraso', 'James Chang']
   gem.email         = ['mtauraso@squareup.com', 'jchang@squareup.com']
-  gem.files         = Dir['Rakefile', '{bin,lib,man,test,spec}/**/*', 'README*', 'LICENSE*'] & `git ls-files -z`.split("\0")
-  gem.executables   = gem.files.grep(%r{^bin/}).map{ |f| File.basename(f) }
+  gem.files         = Dir['Rakefile', '{bin,lib,man,test,spec}/**/*', 'README*', 'LICENSE*'] &
+                      `git ls-files -z`.split("\0")
+  gem.executables   = gem.files.grep(%r{^bin/}).map { |f| File.basename(f) }
   gem.test_files    = gem.files.grep(%r{^(test|spec|features)/})
   gem.require_paths = ['lib']
   gem.homepage      = 'http://square.github.io/git-fastclone/'

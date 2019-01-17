@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 # Copyright 2015 Square Inc.
 
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -31,7 +33,7 @@ describe GitFastClone::Runner do
   end
 
   # Modified ARGV, watch out
-  ARGV = ['ssh://git@git.com/git-fastclone.git', 'test_reference_dir']
+  ARGV = ['ssh://git@git.com/git-fastclone.git', 'test_reference_dir'] # rubocop:disable Style/MutableConstant
 
   let(:yielded) { [] }
 
@@ -104,7 +106,7 @@ describe GitFastClone::Runner do
   describe '.thread_update_submodule' do
     it 'should update correctly' do
       pending('need to figure out how to test this')
-      fail
+      raise
     end
   end
 
@@ -127,7 +129,7 @@ describe GitFastClone::Runner do
 
       expect do
         subject.with_reference_repo_lock(test_url_valid) do
-          fail placeholder_arg
+          raise placeholder_arg
         end
       end.to raise_error(placeholder_arg)
     end
@@ -184,7 +186,7 @@ describe GitFastClone::Runner do
       end
     end
 
-    let(:placeholder_hash) { Hash.new }
+    let(:placeholder_hash) { {} }
 
     context 'when already have a hash' do
       it 'should not store' do
@@ -218,7 +220,7 @@ describe GitFastClone::Runner do
     it 'should go through the submodule file properly' do
       expect(Thread).to receive(:new).exactly(3).times
 
-      allow(File).to receive(:readlines) { %w(1 2 3) }
+      allow(File).to receive(:readlines) { %w[1 2 3] }
       subject.prefetch_submodules = true
       subject.prefetch(placeholder_arg)
     end
@@ -228,7 +230,7 @@ describe GitFastClone::Runner do
     context 'when fail_hard is true' do
       it 'should raise a Cocaine error' do
         cocaine_commandline_double = double('new_cocaine_commandline')
-        allow(cocaine_commandline_double).to receive(:run) { fail Cocaine::ExitStatusError }
+        allow(cocaine_commandline_double).to receive(:run) { raise Cocaine::ExitStatusError }
         allow(Cocaine::CommandLine).to receive(:new) { cocaine_commandline_double }
         expect(FileUtils).to receive(:remove_entry_secure).with(placeholder_arg, force: true)
         expect do
@@ -240,7 +242,7 @@ describe GitFastClone::Runner do
     context 'when fail_hard is false' do
       it 'should not raise a cocaine error' do
         cocaine_commandline_double = double('new_cocaine_commandline')
-        allow(cocaine_commandline_double).to receive(:run) { fail Cocaine::ExitStatusError }
+        allow(cocaine_commandline_double).to receive(:run) { raise Cocaine::ExitStatusError }
         allow(Cocaine::CommandLine).to receive(:new) { cocaine_commandline_double }
         expect(FileUtils).to receive(:remove_entry_secure).with(placeholder_arg, force: true)
 
@@ -250,7 +252,7 @@ describe GitFastClone::Runner do
       end
     end
 
-    let(:placeholder_hash) { Hash.new }
+    let(:placeholder_hash) { {} }
 
     it 'should correctly update the hash' do
       cocaine_commandline_double = double('new_cocaine_commandline')
