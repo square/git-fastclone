@@ -32,7 +32,6 @@ describe GitFastClone::Runner do
     lockfile
   end
 
-  # Modified ARGV, watch out
   before do
     stub_const('ARGV', ['ssh://git@git.com/git-fastclone.git', 'test_reference_dir'])
   end

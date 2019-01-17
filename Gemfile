@@ -5,10 +5,9 @@ source 'https://rubygems.org'
 group :development do
   gem 'bundler'
   gem 'rake'
-  gem 'rubocop'
+  gem 'rubocop', install_if: -> { RUBY_VERSION >= '2.3' }
 end
 
-gem 'logger'
 gem 'rspec'
 
 gemspec
