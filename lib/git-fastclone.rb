@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 # Copyright 2015 Square Inc.
 
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,7 +17,7 @@
 require 'optparse'
 require 'fileutils'
 require 'logger'
-require 'cocaine'
+require 'terrapin'
 require 'timeout'
 
 # Contains helper module UrlHelper and execution class GitFastClone::Runner
@@ -53,7 +55,7 @@ module GitFastClone
 
     def reference_repo_lock_file(url, reference_dir, using_local_repo)
       lock_file_name = "#{reference_repo_dir(url, reference_dir, using_local_repo)}:lock"
-      File.open(lock_file_name, File::RDWR | File::CREAT, 0644)
+      File.open(lock_file_name, File::RDWR | File::CREAT, 0o644)
     end
     module_function :reference_repo_lock_file
   end
@@ -117,7 +119,7 @@ module GitFastClone
       end
 
       puts "Cloning #{path_from_git_url(url)} to #{File.join(abs_clone_path, path)}"
-      Cocaine::CommandLine.environment['GIT_ALLOW_PROTOCOL'] =
+      Terrapin::CommandLine.environment['GIT_ALLOW_PROTOCOL'] =
         ENV['GIT_ALLOW_PROTOCOL'] || DEFAULT_GIT_ALLOW_PROTOCOL
       clone(url, options[:branch], path)
     end
@@ -139,7 +141,7 @@ module GitFastClone
           logger.formatter = proc do |_severity, _datetime, _progname, msg|
             "#{msg}\n"
           end
-          Cocaine::CommandLine.logger = logger
+          Terrapin::CommandLine.logger = logger
         end
 
         opts.on('-c', '--color', 'Display colored output') do
@@ -172,8 +174,9 @@ module GitFastClone
 
       if Dir.exist?(path)
         msg = "Clone destination #{File.join(abs_clone_path, path)} already exists!"
-        fail msg.red if color
-        fail msg
+        raise msg.red if color
+
+        raise msg
       end
 
       self.reference_dir = ENV['REFERENCE_REPO_DIR'] || DEFAULT_REFERENCE_REPO_DIR
@@ -188,16 +191,16 @@ module GitFastClone
       initial_time = Time.now
 
       with_git_mirror(url) do |mirror|
-        Cocaine::CommandLine.new('git clone', '--quiet --reference :mirror :url :path')
-          .run(mirror: mirror.to_s,
-               url: url.to_s,
-               path: File.join(abs_clone_path, src_dir).to_s)
+        Terrapin::CommandLine.new('git clone', '--quiet --reference :mirror :url :path')
+                             .run(mirror: mirror.to_s,
+                                  url: url.to_s,
+                                  path: File.join(abs_clone_path, src_dir).to_s)
       end
 
       # Only checkout if we're changing branches to a non-default branch
       if rev
         Dir.chdir(File.join(abs_clone_path, src_dir)) do
-          Cocaine::CommandLine.new('git checkout', '--quiet :rev').run(rev: rev.to_s)
+          Terrapin::CommandLine.new('git checkout', '--quiet :rev').run(rev: rev.to_s)
         end
       end
 
@@ -221,8 +224,8 @@ module GitFastClone
       threads = []
       submodule_url_list = []
 
-      Cocaine::CommandLine.new('cd', ':path; git submodule init 2>&1')
-        .run(path: File.join(abs_clone_path, pwd)).split("\n").each do |line|
+      Terrapin::CommandLine.new('cd', ':path; git submodule init 2>&1')
+                           .run(path: File.join(abs_clone_path, pwd)).split("\n").each do |line|
         submodule_path, submodule_url = parse_update_info(line)
         submodule_url_list << submodule_url
 
@@ -236,10 +239,10 @@ module GitFastClone
     def thread_update_submodule(submodule_url, submodule_path, threads, pwd)
       threads << Thread.new do
         with_git_mirror(submodule_url) do |mirror|
-          Cocaine::CommandLine.new('cd', ':dir; git submodule update --quiet --reference :mirror :path')
-            .run(dir: File.join(abs_clone_path, pwd).to_s,
-                 mirror: mirror.to_s,
-                 path: submodule_path.to_s)
+          Terrapin::CommandLine.new('cd', ':dir; git submodule update --quiet --reference :mirror :path')
+                               .run(dir: File.join(abs_clone_path, pwd).to_s,
+                                    mirror: mirror.to_s,
+                                    path: submodule_path.to_s)
         end
 
         update_submodules(File.join(pwd, submodule_path), submodule_url)
@@ -313,15 +316,14 @@ module GitFastClone
     # that this repo has been updated on this run of fastclone
     def store_updated_repo(url, mirror, repo_name, fail_hard)
       unless Dir.exist?(mirror)
-        Cocaine::CommandLine.new('git clone', '--mirror :url :mirror')
-          .run(url: url.to_s, mirror: mirror.to_s)
+        Terrapin::CommandLine.new('git clone', '--mirror :url :mirror')
+                             .run(url: url.to_s, mirror: mirror.to_s)
       end
 
-      Cocaine::CommandLine.new('cd', ':path; git remote update --prune').run(path: mirror)
+      Terrapin::CommandLine.new('cd', ':path; git remote update --prune').run(path: mirror)
 
       reference_updated[repo_name] = true
-
-    rescue Cocaine::ExitStatusError => e
+    rescue Terrapin::ExitStatusError => e
       # To avoid corruption of the cache, if we failed to update or check out we remove
       # the cache directory entirely. This may cause the current clone to fail, but if the
       # underlying error from git is transient it will not affect future clones.
