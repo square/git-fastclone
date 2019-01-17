@@ -75,7 +75,7 @@ Before accepting any pull requests, we need you to sign an [Individual Contribut
 
 Acknowledgements
 ----------------
-[thoughtbot/cocaine][3] - jyurek and collaborators
+[thoughtbot/terrapin][3] - jyurek and collaborators
 
 [robolson][4]
 
@@ -104,7 +104,7 @@ License
 
 [1]: https://corner.squareup.com/2015/11/fastclone.html
 [2]: https://docs.google.com/a/squareup.com/forms/d/13WR8m5uZ2nAkJH41k7GdVBXAAbzDk00vxtEYjd6Imzg/viewform?formkey=dDViT2xzUHAwRkI3X3k5Z0lQM091OGc6MQ&ndplr=1
-[3]: https://github.com/thoughtbot/cocaine
+[3]: https://github.com/thoughtbot/terrapin
 [4]: https://github.com/robolson
 [5]: https://github.com/ianchesal
 [6]: https://github.com/mtauraso

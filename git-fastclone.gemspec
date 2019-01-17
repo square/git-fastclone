@@ -36,6 +36,6 @@ Gem::Specification.new do |gem|
   gem.homepage      = 'http://square.github.io/git-fastclone/'
   gem.license       = 'Apache'
 
-  gem.add_runtime_dependency 'cocaine'
   gem.add_runtime_dependency 'colorize'
+  gem.add_runtime_dependency 'terrapin', '~> 0.6.0'
 end

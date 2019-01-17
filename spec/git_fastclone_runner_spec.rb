@@ -33,7 +33,9 @@ describe GitFastClone::Runner do
   end
 
   # Modified ARGV, watch out
-  ARGV = ['ssh://git@git.com/git-fastclone.git', 'test_reference_dir'] # rubocop:disable Style/MutableConstant
+  before do
+    stub_const('ARGV', ['ssh://git@git.com/git-fastclone.git', 'test_reference_dir'])
+  end
 
   let(:yielded) { [] }
 
@@ -74,14 +76,14 @@ describe GitFastClone::Runner do
 
   describe '.clone' do
     it 'should clone correctly' do
-      cocaine_commandline_double = double('new_cocaine_commandline')
+      terrapin_commandline_double = double('new_terrapin_commandline')
       allow(subject).to receive(:with_git_mirror) {}
-      allow(cocaine_commandline_double).to receive(:run) {}
-      allow(Cocaine::CommandLine).to receive(:new) { cocaine_commandline_double }
+      allow(terrapin_commandline_double).to receive(:run) {}
+      allow(Terrapin::CommandLine).to receive(:new) { terrapin_commandline_double }
 
       expect(Time).to receive(:now).twice { 0 }
-      expect(Cocaine::CommandLine).to receive(:new)
-      expect(cocaine_commandline_double).to receive(:run)
+      expect(Terrapin::CommandLine).to receive(:new)
+      expect(terrapin_commandline_double).to receive(:run)
 
       subject.clone(placeholder_arg, placeholder_arg, '.')
     end
@@ -228,22 +230,22 @@ describe GitFastClone::Runner do
 
   describe '.store_updated_repo' do
     context 'when fail_hard is true' do
-      it 'should raise a Cocaine error' do
-        cocaine_commandline_double = double('new_cocaine_commandline')
-        allow(cocaine_commandline_double).to receive(:run) { raise Cocaine::ExitStatusError }
-        allow(Cocaine::CommandLine).to receive(:new) { cocaine_commandline_double }
+      it 'should raise a Terrapin error' do
+        terrapin_commandline_double = double('new_terrapin_commandline')
+        allow(terrapin_commandline_double).to receive(:run) { raise Terrapin::ExitStatusError }
+        allow(Terrapin::CommandLine).to receive(:new) { terrapin_commandline_double }
         expect(FileUtils).to receive(:remove_entry_secure).with(placeholder_arg, force: true)
         expect do
           subject.store_updated_repo(placeholder_arg, placeholder_arg, placeholder_arg, true)
-        end.to raise_error(Cocaine::ExitStatusError)
+        end.to raise_error(Terrapin::ExitStatusError)
       end
     end
 
     context 'when fail_hard is false' do
-      it 'should not raise a cocaine error' do
-        cocaine_commandline_double = double('new_cocaine_commandline')
-        allow(cocaine_commandline_double).to receive(:run) { raise Cocaine::ExitStatusError }
-        allow(Cocaine::CommandLine).to receive(:new) { cocaine_commandline_double }
+      it 'should not raise a terrapin error' do
+        terrapin_commandline_double = double('new_terrapin_commandline')
+        allow(terrapin_commandline_double).to receive(:run) { raise Terrapin::ExitStatusError }
+        allow(Terrapin::CommandLine).to receive(:new) { terrapin_commandline_double }
         expect(FileUtils).to receive(:remove_entry_secure).with(placeholder_arg, force: true)
 
         expect do
@@ -255,9 +257,9 @@ describe GitFastClone::Runner do
     let(:placeholder_hash) { {} }
 
     it 'should correctly update the hash' do
-      cocaine_commandline_double = double('new_cocaine_commandline')
-      allow(cocaine_commandline_double).to receive(:run) {}
-      allow(Cocaine::CommandLine).to receive(:new) { cocaine_commandline_double }
+      terrapin_commandline_double = double('new_terrapin_commandline')
+      allow(terrapin_commandline_double).to receive(:run) {}
+      allow(Terrapin::CommandLine).to receive(:new) { terrapin_commandline_double }
       allow(Dir).to receive(:chdir) {}
 
       subject.reference_updated = placeholder_hash
