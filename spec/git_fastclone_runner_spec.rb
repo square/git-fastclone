@@ -279,5 +279,31 @@ describe GitFastClone::Runner do
 
       expect(yielded).to eq([test_url_valid])
     end
+
+    it 'should retry when the cache looks corrupted' do
+      allow(subject).to receive(:update_reference_repo) {}
+      expect(subject).to receive(:reference_repo_dir)
+      expect(subject).to receive(:reference_repo_lock_file).and_return(lockfile)
+
+      responses = [
+        lambda { |_url|
+          raise Terrapin::ExitStatusError, <<-ERROR.gsub(/^ {12}/, '')
+            STDOUT:
+
+            STDERR:
+
+            fatal: bad object ee35b1e14e7c3a53dcc14d82606e5b872f6a05a7
+            fatal: remote did not send all necessary objects
+          ERROR
+        },
+        ->(url) { url }
+      ]
+      subject.with_git_mirror(test_url_valid) do
+        yielded << responses.shift.call(test_url_valid)
+      end
+
+      expect(responses).to be_empty
+      expect(yielded).to eq([test_url_valid])
+    end
   end
 end

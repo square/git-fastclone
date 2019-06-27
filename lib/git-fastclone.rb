@@ -346,7 +346,25 @@ module GitFastClone
       # ended up doing the update is done with its housekeeping.
       # This makes sure we have control and unlock when the block returns:
       with_reference_repo_lock(url) do
-        yield reference_repo_dir(url, reference_dir, using_local_repo)
+        dir = reference_repo_dir(url, reference_dir, using_local_repo)
+        retries_left = 1
+
+        begin
+          yield dir
+        rescue Terrapin::ExitStatusError => e
+          if e.to_s =~ /^STDERR:\n.+^fatal: (missing blob object|remote did not send all necessary objects)/m
+            # To avoid corruption of the cache, if we failed to update or check out we remove
+            # the cache directory entirely. This may cause the current clone to fail, but if the
+            # underlying error from git is transient it will not affect future clones.
+            FileUtils.remove_entry_secure(dir, force: true)
+            if retries_left > 0
+              retries_left -= 1
+              retry
+            end
+          end
+
+          raise
+        end
       end
     end
 
