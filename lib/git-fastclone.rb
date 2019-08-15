@@ -352,7 +352,12 @@ module GitFastClone
         begin
           yield dir
         rescue Terrapin::ExitStatusError => e
-          if e.to_s =~ /^STDERR:\n.+^fatal: (missing blob object|remote did not send all necessary objects)/m
+          error_strings = [
+            'missing blob object',
+            'remote did not send all necessary objects',
+            /pack has \d+ unresolved deltas/
+          ]
+          if e.to_s =~ /^STDERR:\n.+^fatal: #{Regexp.union(error_strings)}/m
             # To avoid corruption of the cache, if we failed to update or check out we remove
             # the cache directory entirely. This may cause the current clone to fail, but if the
             # underlying error from git is transient it will not affect future clones.
