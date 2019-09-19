@@ -355,6 +355,7 @@ module GitFastClone
           error_strings = [
             'missing blob object',
             'remote did not send all necessary objects',
+            /packed object [a-z0-9]+ \(stored in .*?\) is corrupt/,
             /pack has \d+ unresolved deltas/
           ]
           if e.to_s =~ /^STDERR:\n.+^fatal: #{Regexp.union(error_strings)}/m
