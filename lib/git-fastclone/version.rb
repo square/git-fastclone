@@ -2,5 +2,5 @@
 
 # Version string for git-fastclone
 module GitFastCloneVersion
-  VERSION = '1.2.3'.freeze
+  VERSION = '1.2.4'.freeze
 end
