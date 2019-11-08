@@ -360,4 +360,33 @@ describe GitFastClone::Runner do
       expect(yielded).to eq([test_url_valid])
     end
   end
+
+  it 'should retry when the cache errors with unable to read sha1 file' do
+    allow(subject).to receive(:update_reference_repo) {}
+    expect(subject).to receive(:reference_repo_dir)
+    expect(subject).to receive(:reference_repo_lock_file).and_return(lockfile)
+
+    responses = [
+      lambda { |_url|
+        raise Terrapin::ExitStatusError, <<-ERROR.gsub(/^ {12}/, '')
+            STDOUT:
+
+            STDERR:
+
+            error: unable to read sha1 file of sqiosbuild/lib/action/action.rb (6113b739af82d8b07731de8a58d6e233301f80ab)
+            fatal: unable to checkout working tree
+            warning: Clone succeeded, but checkout failed.
+            You can inspect what was checked out with 'git status'
+            and retry with 'git restore --source=HEAD :/'
+        ERROR
+      },
+      ->(url) { url }
+    ]
+    subject.with_git_mirror(test_url_valid) do
+      yielded << responses.shift.call(test_url_valid)
+    end
+
+    expect(responses).to be_empty
+    expect(yielded).to eq([test_url_valid])
+  end
 end

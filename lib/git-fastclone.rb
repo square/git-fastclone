@@ -353,12 +353,13 @@ module GitFastClone
           yield dir
         rescue Terrapin::ExitStatusError => e
           error_strings = [
-            'missing blob object',
-            'remote did not send all necessary objects',
-            /packed object [a-z0-9]+ \(stored in .*?\) is corrupt/,
-            /pack has \d+ unresolved deltas/
+            'fatal: missing blob object',
+            'fatal: remote did not send all necessary objects',
+            /fatal: packed object [a-z0-9]+ \(stored in .*?\) is corrupt/,
+            /fatal: pack has \d+ unresolved deltas/,
+            'error: unable to read sha1 file of '
           ]
-          if e.to_s =~ /^STDERR:\n.+^fatal: #{Regexp.union(error_strings)}/m
+          if e.to_s =~ /^STDERR:\n.+^#{Regexp.union(error_strings)}/m
             # To avoid corruption of the cache, if we failed to update or check out we remove
             # the cache directory entirely. This may cause the current clone to fail, but if the
             # underlying error from git is transient it will not affect future clones.
