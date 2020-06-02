@@ -389,4 +389,32 @@ describe GitFastClone::Runner do
     expect(responses).to be_empty
     expect(yielded).to eq([test_url_valid])
   end
+
+  it 'should retry when the cache errors with did not receive expected object' do
+    allow(subject).to receive(:update_reference_repo) {}
+    expect(subject).to receive(:reference_repo_dir)
+    expect(subject).to receive(:reference_repo_lock_file).and_return(lockfile)
+
+    responses = [
+      lambda { |_url|
+        raise Terrapin::ExitStatusError, <<-ERROR.gsub(/^ {12}/, '')
+            STDOUT:
+
+            STDERR:
+
+            error: Could not read 6682dfe81f66656436e60883dd795e7ec6735153
+            error: Could not read 0cd3703c23fa44c0043d97fbc26356a23939f31b
+            fatal: did not receive expected object 3c64c9dd49c79bd09aa13d4b05ac18263ca29ccd
+            fatal: index-pack failed
+        ERROR
+      },
+      ->(url) { url }
+    ]
+    subject.with_git_mirror(test_url_valid) do
+      yielded << responses.shift.call(test_url_valid)
+    end
+
+    expect(responses).to be_empty
+    expect(yielded).to eq([test_url_valid])
+  end
 end

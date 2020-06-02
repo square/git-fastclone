@@ -357,7 +357,8 @@ module GitFastClone
             'fatal: remote did not send all necessary objects',
             /fatal: packed object [a-z0-9]+ \(stored in .*?\) is corrupt/,
             /fatal: pack has \d+ unresolved deltas/,
-            'error: unable to read sha1 file of '
+            'error: unable to read sha1 file of ',
+            'fatal: did not receive expected object'
           ]
           if e.to_s =~ /^STDERR:\n.+^#{Regexp.union(error_strings)}/m
             # To avoid corruption of the cache, if we failed to update or check out we remove
