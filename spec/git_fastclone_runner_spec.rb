@@ -333,6 +333,33 @@ describe GitFastClone::Runner do
       expect(yielded).to eq([test_url_valid])
     end
 
+    it 'should retry when one delta is missing' do
+      allow(subject).to receive(:update_reference_repo) {}
+      expect(subject).to receive(:reference_repo_dir)
+      expect(subject).to receive(:reference_repo_lock_file).and_return(lockfile)
+
+      responses = [
+        lambda { |_url|
+          raise Terrapin::ExitStatusError, <<-ERROR.gsub(/^ {12}/, '')
+            STDOUT:
+
+            STDERR:
+
+            error: Could not read f7fad86d06fee0678f9af7203b6031feabb40c3e
+            fatal: pack has 1 unresolved delta
+            fatal: index-pack failed
+          ERROR
+        },
+        ->(url) { url }
+      ]
+      subject.with_git_mirror(test_url_valid) do
+        yielded << responses.shift.call(test_url_valid)
+      end
+
+      expect(responses).to be_empty
+      expect(yielded).to eq([test_url_valid])
+    end
+
     it 'should retry when deltas are missing' do
       allow(subject).to receive(:update_reference_repo) {}
       expect(subject).to receive(:reference_repo_dir)
