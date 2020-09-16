@@ -356,7 +356,7 @@ module GitFastClone
             'fatal: missing blob object',
             'fatal: remote did not send all necessary objects',
             /fatal: packed object [a-z0-9]+ \(stored in .*?\) is corrupt/,
-            /fatal: pack has \d+ unresolved deltas/,
+            /fatal: pack has \d+ unresolved delta/,
             'error: unable to read sha1 file of ',
             'fatal: did not receive expected object'
           ]
