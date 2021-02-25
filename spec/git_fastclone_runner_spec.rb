@@ -306,7 +306,7 @@ describe GitFastClone::Runner do
       expect(yielded).to eq([test_url_valid])
     end
 
-    it 'should retry when the clone succeeds but checkout fails' do
+    it 'should retry when the clone succeeds but checkout fails with corrupt packed object' do
       allow(subject).to receive(:update_reference_repo) {}
       expect(subject).to receive(:reference_repo_dir)
       expect(subject).to receive(:reference_repo_lock_file).and_return(lockfile)
@@ -321,6 +321,35 @@ describe GitFastClone::Runner do
             fatal: packed object 7c4d79704f8adf701f38a7bfb3e33ec5342542f1 (stored in /private/var/tmp/git-fastclone/reference/some-repo.git/objects/pack/pack-d37d7ed3e88d6e5f0ac141a7b0a2b32baf6e21a0.pack) is corrupt
             warning: Clone succeeded, but checkout failed.
             You can inspect what was checked out with 'git status' and retry with 'git restore --source=HEAD :/'
+          ERROR
+        },
+        ->(url) { url }
+      ]
+      subject.with_git_mirror(test_url_valid) do
+        yielded << responses.shift.call(test_url_valid)
+      end
+
+      expect(responses).to be_empty
+      expect(yielded).to eq([test_url_valid])
+    end
+
+    it 'should retry when the clone succeeds but checkout fails with unable to read tree' do
+      allow(subject).to receive(:update_reference_repo) {}
+      expect(subject).to receive(:reference_repo_dir)
+      expect(subject).to receive(:reference_repo_lock_file).and_return(lockfile)
+
+      responses = [
+        lambda { |_url|
+          raise Terrapin::ExitStatusError, <<-ERROR.gsub(/^ {12}/, '')
+            STDOUT:
+
+            STDERR:
+
+            error: Could not read 92cf57b8f07df010ab5f607b109c325e30e46235
+            fatal: unable to read tree 0c32c0521d3b0bfb4e74e4a39b97a84d1a3bb9a1
+            warning: Clone succeeded, but checkout failed.
+            You can inspect what was checked out with 'git status'
+            and retry with 'git restore --source=HEAD :/'
           ERROR
         },
         ->(url) { url }
