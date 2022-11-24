@@ -121,7 +121,7 @@ module GitFastClone
       puts "Cloning #{path_from_git_url(url)} to #{File.join(abs_clone_path, path)}"
       Terrapin::CommandLine.environment['GIT_ALLOW_PROTOCOL'] =
         ENV['GIT_ALLOW_PROTOCOL'] || DEFAULT_GIT_ALLOW_PROTOCOL
-      clone(url, options[:branch], path)
+      clone(url, options[:branch], path, options[:config])
     end
 
     def parse_options
@@ -146,6 +146,10 @@ module GitFastClone
 
         opts.on('-c', '--color', 'Display colored output') do
           self.color = true
+        end
+
+        opts.on('--config CONFIG', 'Git config applied to the cloned repo')  do |config|
+          options[:config] = config
         end
 
         opts.on('--lock-timeout N', 'Timeout in seconds to acquire a lock on any reference repo.
@@ -187,14 +191,17 @@ module GitFastClone
 
     # Checkout to SOURCE_DIR. Update all submodules recursively. Use reference
     # repos everywhere for speed.
-    def clone(url, rev, src_dir)
+    def clone(url, rev, src_dir, config)
       initial_time = Time.now
 
       with_git_mirror(url) do |mirror|
-        Terrapin::CommandLine.new('git clone', '--quiet --reference :mirror :url :path')
+        clone_command = '--quiet --reference :mirror :url :path'
+        clone_command += " --config :config" unless config.nil?
+        Terrapin::CommandLine.new('git clone', clone_command)
                              .run(mirror: mirror.to_s,
                                   url: url.to_s,
-                                  path: File.join(abs_clone_path, src_dir).to_s)
+                                  path: File.join(abs_clone_path, src_dir).to_s,
+                                  config: config.to_s)
       end
 
       # Only checkout if we're changing branches to a non-default branch

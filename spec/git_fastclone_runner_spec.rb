@@ -56,10 +56,21 @@ describe GitFastClone::Runner do
     let(:options) { { branch: placeholder_arg } }
 
     it 'should run with the correct args' do
-      allow(subject).to receive(:parse_inputs) { [placeholder_arg, placeholder_arg, options] }
-      expect(subject).to receive(:clone).with(placeholder_arg, placeholder_arg, placeholder_arg)
+      allow(subject).to receive(:parse_inputs) { [placeholder_arg, placeholder_arg, options, nil] }
+      expect(subject).to receive(:clone).with(placeholder_arg, placeholder_arg, placeholder_arg, nil)
 
       subject.run
+    end
+
+    describe 'with custom configs' do
+      let(:options) { { branch: placeholder_arg, config: 'conf' } }
+
+      it 'should clone correctly' do
+        allow(subject).to receive(:parse_inputs) { [placeholder_arg, placeholder_arg, options, 'conf'] }
+        expect(subject).to receive(:clone).with(placeholder_arg, placeholder_arg, placeholder_arg, 'conf')
+
+        subject.run
+      end
     end
   end
 
@@ -84,7 +95,7 @@ describe GitFastClone::Runner do
       expect(Terrapin::CommandLine).to receive(:new)
       expect(terrapin_commandline_double).to receive(:run)
 
-      subject.clone(placeholder_arg, placeholder_arg, '.')
+      subject.clone(placeholder_arg, placeholder_arg, '.', nil)
     end
   end
 
