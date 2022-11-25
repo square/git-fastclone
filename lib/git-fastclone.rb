@@ -148,7 +148,7 @@ module GitFastClone
           self.color = true
         end
 
-        opts.on('--config CONFIG', 'Git config applied to the cloned repo')  do |config|
+        opts.on('--config CONFIG', 'Git config applied to the cloned repo') do |config|
           options[:config] = config
         end
 
@@ -196,7 +196,7 @@ module GitFastClone
 
       with_git_mirror(url) do |mirror|
         clone_command = '--quiet --reference :mirror :url :path'
-        clone_command += " --config :config" unless config.nil?
+        clone_command += ' --config :config' unless config.nil?
         Terrapin::CommandLine.new('git clone', clone_command)
                              .run(mirror: mirror.to_s,
                                   url: url.to_s,

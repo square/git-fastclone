@@ -85,17 +85,50 @@ describe GitFastClone::Runner do
   end
 
   describe '.clone' do
-    it 'should clone correctly' do
-      terrapin_commandline_double = double('new_terrapin_commandline')
-      allow(subject).to receive(:with_git_mirror) {}
+    let(:terrapin_commandline_double) { double('new_terrapin_commandline') }
+    before(:each) do
       allow(terrapin_commandline_double).to receive(:run) {}
-      allow(Terrapin::CommandLine).to receive(:new) { terrapin_commandline_double }
-
       expect(Time).to receive(:now).twice { 0 }
-      expect(Terrapin::CommandLine).to receive(:new)
-      expect(terrapin_commandline_double).to receive(:run)
+      allow(Dir).to receive(:pwd) { '/pwd' }
+      allow(Dir).to receive(:chdir).and_yield
+      allow(subject).to receive(:with_git_mirror).and_yield('/cache')
+    end
+
+    it 'should clone correctly' do
+      expect(Terrapin::CommandLine).to receive(:new).with(
+        'git clone',
+        '--quiet --reference :mirror :url :path'
+      ) { terrapin_commandline_double }
+      expect(Terrapin::CommandLine).to receive(:new).with(
+        'git checkout',
+        '--quiet :rev'
+      ) { terrapin_commandline_double }
+      expect(terrapin_commandline_double).to receive(:run).with({
+                                                                  mirror: '/cache',
+                                                                  url: placeholder_arg,
+                                                                  path: '/pwd/.',
+                                                                  config: ''
+                                                                })
+      expect(terrapin_commandline_double).to receive(:run).with({ rev: placeholder_arg })
 
       subject.clone(placeholder_arg, placeholder_arg, '.', nil)
+    end
+
+    describe 'with custom configs' do
+      it 'should clone correctly' do
+        expect(Terrapin::CommandLine).to receive(:new).with(
+          'git clone',
+          '--quiet --reference :mirror :url :path --config :config'
+        ) { terrapin_commandline_double }
+        expect(terrapin_commandline_double).to receive(:run).with({
+                                                                    mirror: '/cache',
+                                                                    url: placeholder_arg,
+                                                                    path: '/pwd/.',
+                                                                    config: 'config'
+                                                                  })
+
+        subject.clone(placeholder_arg, nil, '.', 'config')
+      end
     end
   end
 
