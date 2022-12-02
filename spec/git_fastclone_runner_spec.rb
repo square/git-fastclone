@@ -103,13 +103,13 @@ describe GitFastClone::Runner do
         'git checkout',
         '--quiet :rev'
       ) { terrapin_commandline_double }
-      expect(terrapin_commandline_double).to receive(:run).with({
-                                                                  mirror: '/cache',
-                                                                  url: placeholder_arg,
-                                                                  path: '/pwd/.',
-                                                                  config: ''
-                                                                })
-      expect(terrapin_commandline_double).to receive(:run).with({ rev: placeholder_arg })
+      expect(terrapin_commandline_double).to receive(:run).with(
+        mirror: '/cache',
+        url: placeholder_arg,
+        path: '/pwd/.',
+        config: ''
+      )
+      expect(terrapin_commandline_double).to receive(:run).with(rev: placeholder_arg)
 
       subject.clone(placeholder_arg, placeholder_arg, '.', nil)
     end
@@ -120,12 +120,12 @@ describe GitFastClone::Runner do
           'git clone',
           '--quiet --reference :mirror :url :path --config :config'
         ) { terrapin_commandline_double }
-        expect(terrapin_commandline_double).to receive(:run).with({
-                                                                    mirror: '/cache',
-                                                                    url: placeholder_arg,
-                                                                    path: '/pwd/.',
-                                                                    config: 'config'
-                                                                  })
+        expect(terrapin_commandline_double).to receive(:run).with(
+          mirror: '/cache',
+          url: placeholder_arg,
+          path: '/pwd/.',
+          config: 'config'
+        )
 
         subject.clone(placeholder_arg, nil, '.', 'config')
       end
