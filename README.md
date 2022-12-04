@@ -46,6 +46,8 @@ Usage
     -b, --branch <branch>   Clone a specific branch
     -v, --verbose           Shows more info
     -c, --color             Pretty colors!
+        --config CONFIG     Git config applied to the cloned repo
+        --lock-timeout N    Timeout in seconds to acquire a lock on any reference repo.
 
 Change the default `REFERENCE_REPO_DIR` environment variable if necessary.
 
