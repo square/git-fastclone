@@ -44,8 +44,8 @@ Usage
     git fastclone [options] <git-repo-url>
 
     -b, --branch <branch>   Clone a specific branch
-    -v, --verbose           Shows more info
-    -c, --color             Pretty colors!
+    -v, --verbose           Verbose mode
+    -c, --color             Display colored output
         --config CONFIG     Git config applied to the cloned repo
         --lock-timeout N    Timeout in seconds to acquire a lock on any reference repo.
 
