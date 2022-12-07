@@ -62,7 +62,7 @@ describe GitFastClone::UrlHelper do
       allow(subject).to receive(:reference_repo_name) { test_reference_dir }
 
       expect(subject.reference_repo_dir(test_url_valid, test_reference_dir, false))
-        .to eq(test_reference_dir + '/' + test_reference_dir)
+        .to eq("#{test_reference_dir}/#{test_reference_dir}")
     end
   end
 

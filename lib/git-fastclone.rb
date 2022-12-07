@@ -41,7 +41,7 @@ module GitFastClone
 
     def reference_repo_dir(url, reference_dir, using_local_repo)
       if using_local_repo
-        File.join(reference_dir, 'local' + reference_repo_name(url))
+        File.join(reference_dir, "local#{reference_repo_name(url)}")
       else
         File.join(reference_dir, reference_repo_name(url))
       end
@@ -69,9 +69,9 @@ module GitFastClone
 
     include GitFastClone::UrlHelper
 
-    DEFAULT_REFERENCE_REPO_DIR = '/var/tmp/git-fastclone/reference'.freeze
+    DEFAULT_REFERENCE_REPO_DIR = '/var/tmp/git-fastclone/reference'
 
-    DEFAULT_GIT_ALLOW_PROTOCOL = 'file:git:http:https:ssh'.freeze
+    DEFAULT_GIT_ALLOW_PROTOCOL = 'file:git:http:https:ssh'
 
     attr_accessor :reference_dir, :prefetch_submodules, :reference_updated, :reference_mutex,
                   :options, :logger, :abs_clone_path, :using_local_repo, :verbose, :color,
@@ -137,7 +137,7 @@ module GitFastClone
 
         opts.on('-v', '--verbose', 'Verbose mode') do
           self.verbose = true
-          self.logger = Logger.new(STDOUT)
+          self.logger = Logger.new($stdout)
           logger.formatter = proc do |_severity, _datetime, _progname, msg|
             "#{msg}\n"
           end
@@ -163,7 +163,7 @@ module GitFastClone
       parse_options
 
       unless ARGV[0]
-        STDERR.puts usage
+        warn usage
         exit(129)
       end
 
@@ -270,14 +270,12 @@ module GitFastClone
       lockfile.close
     end
 
-    def with_reference_repo_thread_lock(url)
+    def with_reference_repo_thread_lock(url, &block)
       # We also need thread level locking because pre-fetch means multiple threads can
       # attempt to update the same repository from a single git-fastclone process
       # file locks in posix are tracked per process, not per userland thread.
       # This gives us the equivalent of pthread_mutex around these accesses.
-      reference_mutex[reference_repo_name(url)].synchronize do
-        yield
-      end
+      reference_mutex[reference_repo_name(url)].synchronize(&block)
     end
 
     def update_submodule_reference(url, submodule_url_list)
@@ -373,7 +371,7 @@ module GitFastClone
             # the cache directory entirely. This may cause the current clone to fail, but if the
             # underlying error from git is transient it will not affect future clones.
             FileUtils.remove_entry_secure(dir, force: true)
-            if retries_left > 0
+            if retries_left.positive?
               retries_left -= 1
               retry
             end

@@ -1,18 +1,25 @@
 inherit_from: .rubocop_todo.yml
 
 AllCops:
-  TargetRubyVersion: 2.2
+  TargetRubyVersion: 2.7
+  NewCops: enable
 
 Naming/FileName:
   Exclude:
     - 'bin/git-fastclone'
     - 'lib/git-fastclone.rb'
 
+Lint/EmptyBlock:
+  Exclude: ['spec/*']
+
 Metrics/ClassLength:
   Max: 10000
 
 Metrics/LineLength:
   Max: 110
+
+Metrics/AbcSize:
+  Enabled: false
 
 Metrics/MethodLength:
   Max: 2000
