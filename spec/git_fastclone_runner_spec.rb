@@ -91,7 +91,8 @@ describe GitFastClone::Runner do
       expect(Time).to receive(:now).twice { 0 }
       allow(Dir).to receive(:pwd) { '/pwd' }
       allow(Dir).to receive(:chdir).and_yield
-      allow(subject).to receive(:with_git_mirror).and_yield('/cache')
+      allow(subject).to receive(:with_git_mirror).and_yield('/cache', 0)
+      expect(subject).to receive(:clear_clone_dest_if_needed).once {}
     end
 
     it 'should clone correctly' do
@@ -114,21 +115,39 @@ describe GitFastClone::Runner do
       subject.clone(placeholder_arg, placeholder_arg, '.', nil)
     end
 
-    describe 'with custom configs' do
-      it 'should clone correctly' do
-        expect(Terrapin::CommandLine).to receive(:new).with(
-          'git clone',
-          '--quiet --reference :mirror :url :path --config :config'
-        ) { terrapin_commandline_double }
-        expect(terrapin_commandline_double).to receive(:run).with(
-          mirror: '/cache',
-          url: placeholder_arg,
-          path: '/pwd/.',
-          config: 'config'
-        )
+    it 'should clone correctly with custom configs' do
+      expect(Terrapin::CommandLine).to receive(:new).with(
+        'git clone',
+        '--quiet --reference :mirror :url :path --config :config'
+      ) { terrapin_commandline_double }
+      expect(terrapin_commandline_double).to receive(:run).with(
+        mirror: '/cache',
+        url: placeholder_arg,
+        path: '/pwd/.',
+        config: 'config'
+      )
 
-        subject.clone(placeholder_arg, nil, '.', 'config')
-      end
+      subject.clone(placeholder_arg, nil, '.', 'config')
+    end
+  end
+
+  describe '.clear_clone_dest_if_needed' do
+    it 'does not clear on first attempt' do
+      expect(Dir).not_to receive(:[])
+      expect(subject).not_to receive(:clear_clone_dest)
+      subject.clear_clone_dest_if_needed(0, '/some/path')
+    end
+
+    it 'does not clear on if the directory is empty' do
+      expect(Dir).to receive(:[]).and_return([])
+      expect(subject).not_to receive(:clear_clone_dest)
+      subject.clear_clone_dest_if_needed(1, '/some/path')
+    end
+
+    it 'does clear if the directory is empty' do
+      expect(Dir).to receive(:[]).and_return(['/some/path/file.txt'])
+      expect(subject).to receive(:clear_clone_dest) {}
+      subject.clear_clone_dest_if_needed(1, '/some/path')
     end
   end
 
@@ -312,16 +331,67 @@ describe GitFastClone::Runner do
   end
 
   describe '.with_git_mirror' do
-    it 'should yield properly' do
+    before(:each) do
       allow(subject).to receive(:update_reference_repo) {}
-      expect(subject).to receive(:reference_repo_dir)
+      allow(subject).to receive(:print_formatted_error) {}
+      expect(subject).to receive(:reference_repo_dir).and_return(test_reference_repo_dir)
       expect(subject).to receive(:reference_repo_lock_file).and_return(lockfile)
+    end
 
-      subject.with_git_mirror(test_url_valid) do
-        yielded << test_url_valid
+    def retriable_error
+      %(
+        STDOUT:
+
+        STDERR:
+
+        fatal: bad object ee35b1e14e7c3a53dcc14d82606e5b872f6a05a7
+        fatal: remote did not send all necessary objects
+      ).strip.split("\n").map(&:strip).join("\n")
+    end
+
+    def try_with_git_mirror(responses, results)
+      lambdas = responses.map do |response|
+        if response == true
+          # Simulate successful response
+          ->(url) { url }
+        else
+          # Simulate failed error response
+          ->(_url) { raise Terrapin::ExitStatusError, response }
+        end
       end
 
-      expect(yielded).to eq([test_url_valid])
+      subject.with_git_mirror(test_url_valid) do |url, attempt|
+        raise 'Not enough responses were provided!' if lambdas.empty?
+
+        yielded << [lambdas.shift.call(url), attempt]
+      end
+
+      expect(lambdas).to be_empty
+      expect(yielded).to eq(results)
+    end
+
+    it 'should yield properly' do
+      expect(subject).not_to receive(:clear_cache)
+      try_with_git_mirror([true], [[test_reference_repo_dir, 0]])
+    end
+
+    it 'should retry once for retriable errors' do
+      expect(subject).to receive(:clear_cache).once {}
+      try_with_git_mirror([retriable_error, true], [[test_reference_repo_dir, 1]])
+    end
+
+    it 'should only retry twice at most' do
+      expect(subject).to receive(:clear_cache).twice {}
+      expect do
+        try_with_git_mirror([retriable_error, retriable_error], [])
+      end.to raise_error(Terrapin::ExitStatusError)
+    end
+
+    it 'should not retry for non-retriable errors' do
+      expect(subject).not_to receive(:clear_cache)
+      expect do
+        try_with_git_mirror(['Some unexpected error message'], [])
+      end.to raise_error(Terrapin::ExitStatusError)
     end
   end
 
