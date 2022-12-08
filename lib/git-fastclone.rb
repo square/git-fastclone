@@ -192,15 +192,16 @@ module GitFastClone
     def clear_clone_dest_if_needed(attempt_number, clone_dest)
       return unless attempt_number.positive?
 
-      clone_dest_contents = Dir["#{clone_dest}/*"]
-      return if clone_dest_contents.empty?
+      dest_with_dotfiles = Dir.glob("#{clone_dest}/*", File::FNM_DOTMATCH)
+      dest_files = dest_with_dotfiles.reject { |f| %w[. ..].include?(File.basename(f)) }
+      return if dest_files.empty?
 
-      clear_clone_dest(clone_dest_contents)
+      clear_clone_dest(dest_files)
     end
 
-    def clear_clone_dest(clone_dest_contents)
+    def clear_clone_dest(dest_files)
       puts 'Non-empty clone directory found, clearing its content now.'
-      FileUtils.rm_rf(clone_dest_contents)
+      FileUtils.rm_rf(dest_files)
     end
 
     # Checkout to SOURCE_DIR. Update all submodules recursively. Use reference

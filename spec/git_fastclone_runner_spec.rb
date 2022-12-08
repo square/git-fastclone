@@ -133,19 +133,19 @@ describe GitFastClone::Runner do
 
   describe '.clear_clone_dest_if_needed' do
     it 'does not clear on first attempt' do
-      expect(Dir).not_to receive(:[])
+      expect(Dir).not_to receive(:glob)
       expect(subject).not_to receive(:clear_clone_dest)
       subject.clear_clone_dest_if_needed(0, '/some/path')
     end
 
-    it 'does not clear on if the directory is empty' do
-      expect(Dir).to receive(:[]).and_return([])
+    it 'does not clear if the directory is only FNM_DOTMATCH self and parent refs' do
+      expect(Dir).to receive(:glob).and_return(%w[. ..])
       expect(subject).not_to receive(:clear_clone_dest)
       subject.clear_clone_dest_if_needed(1, '/some/path')
     end
 
-    it 'does clear if the directory is empty' do
-      expect(Dir).to receive(:[]).and_return(['/some/path/file.txt'])
+    it 'does clear if the directory is not empty' do
+      expect(Dir).to receive(:glob).and_return(%w[. .. /some/path/file.txt])
       expect(subject).to receive(:clear_clone_dest) {}
       subject.clear_clone_dest_if_needed(1, '/some/path')
     end
