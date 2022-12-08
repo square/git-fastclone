@@ -34,7 +34,7 @@ Gem::Specification.new do |gem|
   gem.homepage      = 'http://square.github.io/git-fastclone/'
   gem.license       = 'Apache'
 
-  gem.required_ruby_version = '~> 2.7'
+  gem.required_ruby_version = '>= 2.7'
 
   gem.add_runtime_dependency 'colorize'
   gem.add_runtime_dependency 'terrapin', '~> 0.6.0'
