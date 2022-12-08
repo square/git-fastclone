@@ -41,7 +41,7 @@ module GitFastClone
 
     def reference_repo_dir(url, reference_dir, using_local_repo)
       if using_local_repo
-        File.join(reference_dir, 'local' + reference_repo_name(url))
+        File.join(reference_dir, "local#{reference_repo_name(url)}")
       else
         File.join(reference_dir, reference_repo_name(url))
       end
@@ -69,9 +69,9 @@ module GitFastClone
 
     include GitFastClone::UrlHelper
 
-    DEFAULT_REFERENCE_REPO_DIR = '/var/tmp/git-fastclone/reference'.freeze
+    DEFAULT_REFERENCE_REPO_DIR = '/var/tmp/git-fastclone/reference'
 
-    DEFAULT_GIT_ALLOW_PROTOCOL = 'file:git:http:https:ssh'.freeze
+    DEFAULT_GIT_ALLOW_PROTOCOL = 'file:git:http:https:ssh'
 
     attr_accessor :reference_dir, :prefetch_submodules, :reference_updated, :reference_mutex,
                   :options, :logger, :abs_clone_path, :using_local_repo, :verbose, :color,
@@ -137,7 +137,7 @@ module GitFastClone
 
         opts.on('-v', '--verbose', 'Verbose mode') do
           self.verbose = true
-          self.logger = Logger.new(STDOUT)
+          self.logger = Logger.new($stdout)
           logger.formatter = proc do |_severity, _datetime, _progname, msg|
             "#{msg}\n"
           end
@@ -163,7 +163,7 @@ module GitFastClone
       parse_options
 
       unless ARGV[0]
-        STDERR.puts usage
+        warn usage
         exit(129)
       end
 
@@ -189,18 +189,40 @@ module GitFastClone
       [url, path, options]
     end
 
+    def clear_clone_dest_if_needed(attempt_number, clone_dest)
+      return unless attempt_number.positive?
+
+      dest_with_dotfiles = Dir.glob("#{clone_dest}/*", File::FNM_DOTMATCH)
+      dest_files = dest_with_dotfiles.reject { |f| %w[. ..].include?(File.basename(f)) }
+      return if dest_files.empty?
+
+      clear_clone_dest(dest_files)
+    end
+
+    def clear_clone_dest(dest_files)
+      puts 'Non-empty clone directory found, clearing its content now.'
+      FileUtils.rm_rf(dest_files)
+    end
+
     # Checkout to SOURCE_DIR. Update all submodules recursively. Use reference
     # repos everywhere for speed.
     def clone(url, rev, src_dir, config)
+      clone_dest = File.join(abs_clone_path, src_dir).to_s
       initial_time = Time.now
 
-      with_git_mirror(url) do |mirror|
+      if Dir.exist?(clone_dest) && !Dir.empty?(clone_dest)
+        raise "Can't clone into an existing non-empty path: #{clone_dest}"
+      end
+
+      with_git_mirror(url) do |mirror, attempt_number|
+        clear_clone_dest_if_needed(attempt_number, clone_dest)
+
         clone_command = '--quiet --reference :mirror :url :path'
         clone_command += ' --config :config' unless config.nil?
         Terrapin::CommandLine.new('git clone', clone_command)
                              .run(mirror: mirror.to_s,
                                   url: url.to_s,
-                                  path: File.join(abs_clone_path, src_dir).to_s,
+                                  path: clone_dest,
                                   config: config.to_s)
       end
 
@@ -245,7 +267,7 @@ module GitFastClone
 
     def thread_update_submodule(submodule_url, submodule_path, threads, pwd)
       threads << Thread.new do
-        with_git_mirror(submodule_url) do |mirror|
+        with_git_mirror(submodule_url) do |mirror, _|
           Terrapin::CommandLine.new('cd', ':dir; git submodule update --quiet --reference :mirror :path')
                                .run(dir: File.join(abs_clone_path, pwd).to_s,
                                     mirror: mirror.to_s,
@@ -270,14 +292,12 @@ module GitFastClone
       lockfile.close
     end
 
-    def with_reference_repo_thread_lock(url)
+    def with_reference_repo_thread_lock(url, &block)
       # We also need thread level locking because pre-fetch means multiple threads can
       # attempt to update the same repository from a single git-fastclone process
       # file locks in posix are tracked per process, not per userland thread.
       # This gives us the equivalent of pthread_mutex around these accesses.
-      reference_mutex[reference_repo_name(url)].synchronize do
-        yield
-      end
+      reference_mutex[reference_repo_name(url)].synchronize(&block)
     end
 
     def update_submodule_reference(url, submodule_url_list)
@@ -338,6 +358,31 @@ module GitFastClone
       raise e if fail_hard
     end
 
+    def retriable_error?(error)
+      error_strings = [
+        'fatal: missing blob object',
+        'fatal: remote did not send all necessary objects',
+        /fatal: packed object [a-z0-9]+ \(stored in .*?\) is corrupt/,
+        /fatal: pack has \d+ unresolved delta/,
+        'error: unable to read sha1 file of ',
+        'fatal: did not receive expected object',
+        /^fatal: unable to read tree [a-z0-9]+\n^warning: Clone succeeded, but checkout failed/
+      ]
+      error.to_s =~ /^STDERR:\n.*^#{Regexp.union(error_strings)}/m
+    end
+
+    def print_formatted_error(error)
+      indented_error = error.to_s.split("\n").map { |s| ">  #{s}\n" }.join
+      puts "Encountered a retriable error:\n#{indented_error}\n\nRemoving the fastclone cache."
+    end
+
+    # To avoid corruption of the cache, if we failed to update or check out we remove
+    # the cache directory entirely. This may cause the current clone to fail, but if the
+    # underlying error from git is transient it will not affect future clones.
+    def clear_cache(dir)
+      FileUtils.remove_entry_secure(dir, force: true)
+    end
+
     # This command will create and bring the mirror up-to-date on-demand,
     # blocking any code passed in while the mirror is brought up-to-date
     #
@@ -354,27 +399,18 @@ module GitFastClone
       # This makes sure we have control and unlock when the block returns:
       with_reference_repo_lock(url) do
         dir = reference_repo_dir(url, reference_dir, using_local_repo)
-        retries_left = 1
+        retries_allowed = 1
+        attempt_number = 0
 
         begin
-          yield dir
+          yield dir, attempt_number
         rescue Terrapin::ExitStatusError => e
-          error_strings = [
-            'fatal: missing blob object',
-            'fatal: remote did not send all necessary objects',
-            /fatal: packed object [a-z0-9]+ \(stored in .*?\) is corrupt/,
-            /fatal: pack has \d+ unresolved delta/,
-            'error: unable to read sha1 file of ',
-            'fatal: did not receive expected object',
-            /^fatal: unable to read tree [a-z0-9]+\n^warning: Clone succeeded, but checkout failed/
-          ]
-          if e.to_s =~ /^STDERR:\n.+^#{Regexp.union(error_strings)}/m
-            # To avoid corruption of the cache, if we failed to update or check out we remove
-            # the cache directory entirely. This may cause the current clone to fail, but if the
-            # underlying error from git is transient it will not affect future clones.
-            FileUtils.remove_entry_secure(dir, force: true)
-            if retries_left > 0
-              retries_left -= 1
+          if retriable_error?(e)
+            print_formatted_error(e)
+            clear_cache(dir)
+
+            if attempt_number < retries_allowed
+              attempt_number += 1
               retry
             end
           end

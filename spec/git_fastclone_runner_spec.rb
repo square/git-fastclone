@@ -91,7 +91,8 @@ describe GitFastClone::Runner do
       expect(Time).to receive(:now).twice { 0 }
       allow(Dir).to receive(:pwd) { '/pwd' }
       allow(Dir).to receive(:chdir).and_yield
-      allow(subject).to receive(:with_git_mirror).and_yield('/cache')
+      allow(subject).to receive(:with_git_mirror).and_yield('/cache', 0)
+      expect(subject).to receive(:clear_clone_dest_if_needed).once {}
     end
 
     it 'should clone correctly' do
@@ -114,21 +115,39 @@ describe GitFastClone::Runner do
       subject.clone(placeholder_arg, placeholder_arg, '.', nil)
     end
 
-    describe 'with custom configs' do
-      it 'should clone correctly' do
-        expect(Terrapin::CommandLine).to receive(:new).with(
-          'git clone',
-          '--quiet --reference :mirror :url :path --config :config'
-        ) { terrapin_commandline_double }
-        expect(terrapin_commandline_double).to receive(:run).with(
-          mirror: '/cache',
-          url: placeholder_arg,
-          path: '/pwd/.',
-          config: 'config'
-        )
+    it 'should clone correctly with custom configs' do
+      expect(Terrapin::CommandLine).to receive(:new).with(
+        'git clone',
+        '--quiet --reference :mirror :url :path --config :config'
+      ) { terrapin_commandline_double }
+      expect(terrapin_commandline_double).to receive(:run).with(
+        mirror: '/cache',
+        url: placeholder_arg,
+        path: '/pwd/.',
+        config: 'config'
+      )
 
-        subject.clone(placeholder_arg, nil, '.', 'config')
-      end
+      subject.clone(placeholder_arg, nil, '.', 'config')
+    end
+  end
+
+  describe '.clear_clone_dest_if_needed' do
+    it 'does not clear on first attempt' do
+      expect(Dir).not_to receive(:glob)
+      expect(subject).not_to receive(:clear_clone_dest)
+      subject.clear_clone_dest_if_needed(0, '/some/path')
+    end
+
+    it 'does not clear if the directory is only FNM_DOTMATCH self and parent refs' do
+      expect(Dir).to receive(:glob).and_return(%w[. ..])
+      expect(subject).not_to receive(:clear_clone_dest)
+      subject.clear_clone_dest_if_needed(1, '/some/path')
+    end
+
+    it 'does clear if the directory is not empty' do
+      expect(Dir).to receive(:glob).and_return(%w[. .. /some/path/file.txt])
+      expect(subject).to receive(:clear_clone_dest) {}
+      subject.clear_clone_dest_if_needed(1, '/some/path')
     end
   end
 
@@ -312,209 +331,154 @@ describe GitFastClone::Runner do
   end
 
   describe '.with_git_mirror' do
+    before(:each) do
+      allow(subject).to receive(:update_reference_repo) {}
+      allow(subject).to receive(:print_formatted_error) {}
+      expect(subject).to receive(:reference_repo_dir).and_return(test_reference_repo_dir)
+      expect(subject).to receive(:reference_repo_lock_file).and_return(lockfile)
+    end
+
+    def retriable_error
+      %(
+        STDOUT:
+
+        STDERR:
+
+        fatal: bad object ee35b1e14e7c3a53dcc14d82606e5b872f6a05a7
+        fatal: remote did not send all necessary objects
+      ).strip.split("\n").map(&:strip).join("\n")
+    end
+
+    def try_with_git_mirror(responses, results)
+      lambdas = responses.map do |response|
+        if response == true
+          # Simulate successful response
+          ->(url) { url }
+        else
+          # Simulate failed error response
+          ->(_url) { raise Terrapin::ExitStatusError, response }
+        end
+      end
+
+      subject.with_git_mirror(test_url_valid) do |url, attempt|
+        raise 'Not enough responses were provided!' if lambdas.empty?
+
+        yielded << [lambdas.shift.call(url), attempt]
+      end
+
+      expect(lambdas).to be_empty
+      expect(yielded).to eq(results)
+    end
+
     it 'should yield properly' do
-      allow(subject).to receive(:update_reference_repo) {}
-      expect(subject).to receive(:reference_repo_dir)
-      expect(subject).to receive(:reference_repo_lock_file).and_return(lockfile)
-
-      subject.with_git_mirror(test_url_valid) do
-        yielded << test_url_valid
-      end
-
-      expect(yielded).to eq([test_url_valid])
+      expect(subject).not_to receive(:clear_cache)
+      try_with_git_mirror([true], [[test_reference_repo_dir, 0]])
     end
 
-    it 'should retry when the cache looks corrupted' do
-      allow(subject).to receive(:update_reference_repo) {}
-      expect(subject).to receive(:reference_repo_dir)
-      expect(subject).to receive(:reference_repo_lock_file).and_return(lockfile)
-
-      responses = [
-        lambda { |_url|
-          raise Terrapin::ExitStatusError, <<-ERROR.gsub(/^ {12}/, '')
-            STDOUT:
-
-            STDERR:
-
-            fatal: bad object ee35b1e14e7c3a53dcc14d82606e5b872f6a05a7
-            fatal: remote did not send all necessary objects
-          ERROR
-        },
-        ->(url) { url }
-      ]
-      subject.with_git_mirror(test_url_valid) do
-        yielded << responses.shift.call(test_url_valid)
-      end
-
-      expect(responses).to be_empty
-      expect(yielded).to eq([test_url_valid])
+    it 'should retry once for retriable errors' do
+      expect(subject).to receive(:clear_cache).once {}
+      try_with_git_mirror([retriable_error, true], [[test_reference_repo_dir, 1]])
     end
 
-    it 'should retry when the clone succeeds but checkout fails with corrupt packed object' do
-      allow(subject).to receive(:update_reference_repo) {}
-      expect(subject).to receive(:reference_repo_dir)
-      expect(subject).to receive(:reference_repo_lock_file).and_return(lockfile)
-
-      responses = [
-        lambda { |_url|
-          raise Terrapin::ExitStatusError, <<-ERROR.gsub(/^ {12}/, '')
-            STDOUT:
-
-            STDERR:
-
-            fatal: packed object 7c4d79704f8adf701f38a7bfb3e33ec5342542f1 (stored in /private/var/tmp/git-fastclone/reference/some-repo.git/objects/pack/pack-d37d7ed3e88d6e5f0ac141a7b0a2b32baf6e21a0.pack) is corrupt
-            warning: Clone succeeded, but checkout failed.
-            You can inspect what was checked out with 'git status' and retry with 'git restore --source=HEAD :/'
-          ERROR
-        },
-        ->(url) { url }
-      ]
-      subject.with_git_mirror(test_url_valid) do
-        yielded << responses.shift.call(test_url_valid)
-      end
-
-      expect(responses).to be_empty
-      expect(yielded).to eq([test_url_valid])
+    it 'should only retry twice at most' do
+      expect(subject).to receive(:clear_cache).twice {}
+      expect do
+        try_with_git_mirror([retriable_error, retriable_error], [])
+      end.to raise_error(Terrapin::ExitStatusError)
     end
 
-    it 'should retry when the clone succeeds but checkout fails with unable to read tree' do
-      allow(subject).to receive(:update_reference_repo) {}
-      expect(subject).to receive(:reference_repo_dir)
-      expect(subject).to receive(:reference_repo_lock_file).and_return(lockfile)
-
-      responses = [
-        lambda { |_url|
-          raise Terrapin::ExitStatusError, <<-ERROR.gsub(/^ {12}/, '')
-            STDOUT:
-
-            STDERR:
-
-            error: Could not read 92cf57b8f07df010ab5f607b109c325e30e46235
-            fatal: unable to read tree 0c32c0521d3b0bfb4e74e4a39b97a84d1a3bb9a1
-            warning: Clone succeeded, but checkout failed.
-            You can inspect what was checked out with 'git status'
-            and retry with 'git restore --source=HEAD :/'
-          ERROR
-        },
-        ->(url) { url }
-      ]
-      subject.with_git_mirror(test_url_valid) do
-        yielded << responses.shift.call(test_url_valid)
-      end
-
-      expect(responses).to be_empty
-      expect(yielded).to eq([test_url_valid])
-    end
-
-    it 'should retry when one delta is missing' do
-      allow(subject).to receive(:update_reference_repo) {}
-      expect(subject).to receive(:reference_repo_dir)
-      expect(subject).to receive(:reference_repo_lock_file).and_return(lockfile)
-
-      responses = [
-        lambda { |_url|
-          raise Terrapin::ExitStatusError, <<-ERROR.gsub(/^ {12}/, '')
-            STDOUT:
-
-            STDERR:
-
-            error: Could not read f7fad86d06fee0678f9af7203b6031feabb40c3e
-            fatal: pack has 1 unresolved delta
-            fatal: index-pack failed
-          ERROR
-        },
-        ->(url) { url }
-      ]
-      subject.with_git_mirror(test_url_valid) do
-        yielded << responses.shift.call(test_url_valid)
-      end
-
-      expect(responses).to be_empty
-      expect(yielded).to eq([test_url_valid])
-    end
-
-    it 'should retry when deltas are missing' do
-      allow(subject).to receive(:update_reference_repo) {}
-      expect(subject).to receive(:reference_repo_dir)
-      expect(subject).to receive(:reference_repo_lock_file).and_return(lockfile)
-
-      responses = [
-        lambda { |_url|
-          raise Terrapin::ExitStatusError, <<-ERROR.gsub(/^ {12}/, '')
-            STDOUT:
-
-            STDERR:
-
-            error: Could not read f7fad86d06fee0678f9af7203b6031feabb40c3e
-            fatal: pack has 138063 unresolved deltas
-            fatal: index-pack failed
-          ERROR
-        },
-        ->(url) { url }
-      ]
-      subject.with_git_mirror(test_url_valid) do
-        yielded << responses.shift.call(test_url_valid)
-      end
-
-      expect(responses).to be_empty
-      expect(yielded).to eq([test_url_valid])
+    it 'should not retry for non-retriable errors' do
+      expect(subject).not_to receive(:clear_cache)
+      expect do
+        try_with_git_mirror(['Some unexpected error message'], [])
+      end.to raise_error(Terrapin::ExitStatusError)
     end
   end
 
-  it 'should retry when the cache errors with unable to read sha1 file' do
-    allow(subject).to receive(:update_reference_repo) {}
-    expect(subject).to receive(:reference_repo_dir)
-    expect(subject).to receive(:reference_repo_lock_file).and_return(lockfile)
-
-    responses = [
-      lambda { |_url|
-        raise Terrapin::ExitStatusError, <<-ERROR.gsub(/^ {12}/, '')
-            STDOUT:
-
-            STDERR:
-
-            error: unable to read sha1 file of sqiosbuild/lib/action/action.rb (6113b739af82d8b07731de8a58d6e233301f80ab)
-            fatal: unable to checkout working tree
-            warning: Clone succeeded, but checkout failed.
-            You can inspect what was checked out with 'git status'
-            and retry with 'git restore --source=HEAD :/'
-        ERROR
-      },
-      ->(url) { url }
-    ]
-    subject.with_git_mirror(test_url_valid) do
-      yielded << responses.shift.call(test_url_valid)
+  describe '.retriable_error?' do
+    def format_error(error)
+      error_wrapper = "STDOUT:\n\nSTDERR:\n#{error}"
+      error_wrapper.strip.lines.map(&:strip).join("\n")
     end
 
-    expect(responses).to be_empty
-    expect(yielded).to eq([test_url_valid])
-  end
+    it 'not for a random error message' do
+      error = format_error 'random error message'
 
-  it 'should retry when the cache errors with did not receive expected object' do
-    allow(subject).to receive(:update_reference_repo) {}
-    expect(subject).to receive(:reference_repo_dir)
-    expect(subject).to receive(:reference_repo_lock_file).and_return(lockfile)
-
-    responses = [
-      lambda { |_url|
-        raise Terrapin::ExitStatusError, <<-ERROR.gsub(/^ {12}/, '')
-            STDOUT:
-
-            STDERR:
-
-            error: Could not read 6682dfe81f66656436e60883dd795e7ec6735153
-            error: Could not read 0cd3703c23fa44c0043d97fbc26356a23939f31b
-            fatal: did not receive expected object 3c64c9dd49c79bd09aa13d4b05ac18263ca29ccd
-            fatal: index-pack failed
-        ERROR
-      },
-      ->(url) { url }
-    ]
-    subject.with_git_mirror(test_url_valid) do
-      yielded << responses.shift.call(test_url_valid)
+      expect(subject.retriable_error?(error)).to be_falsey
     end
 
-    expect(responses).to be_empty
-    expect(yielded).to eq([test_url_valid])
+    it 'when the cache looks corrupted' do
+      error = format_error <<-ERROR
+        fatal: bad object ee35b1e14e7c3a53dcc14d82606e5b872f6a05a7
+        fatal: remote did not send all necessary objects
+      ERROR
+
+      expect(subject.retriable_error?(error)).to be_truthy
+    end
+
+    it 'when the clone succeeds but checkout fails with corrupt packed object' do
+      error = format_error <<-ERROR
+        fatal: packed object 7c4d79704f8adf701f38a7bfb3e33ec5342542f1 (stored in /private/var/tmp/git-fastclone/reference/some-repo.git/objects/pack/pack-d37d7ed3e88d6e5f0ac141a7b0a2b32baf6e21a0.pack) is corrupt
+        warning: Clone succeeded, but checkout failed.
+        You can inspect what was checked out with 'git status' and retry with 'git restore --source=HEAD :/'
+      ERROR
+
+      expect(subject.retriable_error?(error)).to be_truthy
+    end
+
+    it 'when the clone succeeds but checkout fails with unable to read tree' do
+      error = format_error <<-ERROR
+        error: Could not read 92cf57b8f07df010ab5f607b109c325e30e46235
+        fatal: unable to read tree 0c32c0521d3b0bfb4e74e4a39b97a84d1a3bb9a1
+        warning: Clone succeeded, but checkout failed.
+        You can inspect what was checked out with 'git status'
+        and retry with 'git restore --source=HEAD :/'
+      ERROR
+
+      expect(subject.retriable_error?(error)).to be_truthy
+    end
+
+    it 'when one delta is missing' do
+      error = format_error <<-ERROR
+        error: Could not read f7fad86d06fee0678f9af7203b6031feabb40c3e
+        fatal: pack has 1 unresolved delta
+        fatal: index-pack failed
+      ERROR
+
+      expect(subject.retriable_error?(error)).to be_truthy
+    end
+
+    it 'when deltas are missing' do
+      error = format_error <<-ERROR
+        error: Could not read f7fad86d06fee0678f9af7203b6031feabb40c3e
+        fatal: pack has 138063 unresolved deltas
+        fatal: index-pack failed
+      ERROR
+
+      expect(subject.retriable_error?(error)).to be_truthy
+    end
+
+    it 'when the cache errors with unable to read sha1 file' do
+      error = format_error <<-ERROR
+        error: unable to read sha1 file of sqiosbuild/lib/action/action.rb (6113b739af82d8b07731de8a58d6e233301f80ab)
+        fatal: unable to checkout working tree
+        warning: Clone succeeded, but checkout failed.
+        You can inspect what was checked out with 'git status'
+        and retry with 'git restore --source=HEAD :/'
+      ERROR
+
+      expect(subject.retriable_error?(error)).to be_truthy
+    end
+
+    it 'when the cache errors with did not receive expected object' do
+      error = format_error <<-ERROR
+      error: Could not read 6682dfe81f66656436e60883dd795e7ec6735153
+      error: Could not read 0cd3703c23fa44c0043d97fbc26356a23939f31b
+      fatal: did not receive expected object 3c64c9dd49c79bd09aa13d4b05ac18263ca29ccd
+      fatal: index-pack failed
+      ERROR
+
+      expect(subject.retriable_error?(error)).to be_truthy
+    end
   end
 end
