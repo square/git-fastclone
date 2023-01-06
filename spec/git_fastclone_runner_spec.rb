@@ -371,23 +371,27 @@ describe GitFastClone::Runner do
     end
 
     it 'should yield properly' do
+      expect(subject).to receive(:update_reference_repo).once {}
       expect(subject).not_to receive(:clear_cache)
       try_with_git_mirror([true], [[test_reference_repo_dir, 0]])
     end
 
-    it 'should retry once for retriable errors' do
+    it 'should retry once for retriable errors, clearing and repopulating the cache' do
       expect(subject).to receive(:clear_cache).once {}
+      expect(subject).to receive(:update_reference_repo).twice {}
       try_with_git_mirror([retriable_error, true], [[test_reference_repo_dir, 1]])
     end
 
     it 'should only retry twice at most' do
       expect(subject).to receive(:clear_cache).twice {}
+      expect(subject).to receive(:update_reference_repo).twice {}
       expect do
         try_with_git_mirror([retriable_error, retriable_error], [])
       end.to raise_error(Terrapin::ExitStatusError)
     end
 
     it 'should not retry for non-retriable errors' do
+      expect(subject).to receive(:update_reference_repo).once {}
       expect(subject).not_to receive(:clear_cache)
       expect do
         try_with_git_mirror(['Some unexpected error message'], [])

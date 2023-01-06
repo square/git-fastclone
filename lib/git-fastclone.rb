@@ -410,6 +410,7 @@ module GitFastClone
             clear_cache(dir)
 
             if attempt_number < retries_allowed
+              update_reference_repo(url, true)
               attempt_number += 1
               retry
             end
