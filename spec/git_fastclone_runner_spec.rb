@@ -332,7 +332,7 @@ describe GitFastClone::Runner do
     end
   end
 
-  describe '.with_git_mirror (without stubbing)' do
+  describe '.with_git_mirror' do
     def retriable_error
       %(
         STDOUT:
@@ -389,130 +389,57 @@ describe GitFastClone::Runner do
       expect(expected_commands).to be_empty
     end
 
-    context 'when it clones once' do
-      let(:expected_commands) {
-        [
-          ['git clone', '--mirror :url :mirror'],
-          ['cd', ':path; git remote update --prune']
-        ]
-      }
-      let(:expected_commands_args) {
-        [
-          {
-            mirror: test_reference_repo_dir,
-            url: test_url_valid
-          },
-          {
-            path: test_reference_repo_dir
-          }
-        ]
-      }
+    def clone_cmds
+      [
+        ['git clone', '--mirror :url :mirror'],
+        ['cd', ':path; git remote update --prune']
+      ]
+    end
 
-      it 'should work' do
+    def clone_args
+      [
+        {
+          mirror: test_reference_repo_dir,
+          url: test_url_valid
+        },
+        {
+          path: test_reference_repo_dir
+        }
+      ]
+    end
+
+    context 'expecting 1 clone attempt' do
+      let(:expected_commands) { clone_cmds }
+      let(:expected_commands_args) { clone_args }
+
+      it 'should succeed with a successful clone' do
+        expect(subject).not_to receive(:clear_cache)
         try_with_git_mirror([true], [[test_reference_repo_dir, 0]])
       end
+
+      it 'should fail after a non-retryable clone error' do
+        expect(subject).not_to receive(:clear_cache)
+        expect do
+          try_with_git_mirror(['Some unexpected error message'], [])
+        end.to raise_error(Terrapin::ExitStatusError)
+      end
     end
 
-    context 'when it retries once' do
-      let(:expected_commands) {
-        [
-          ['git clone', '--mirror :url :mirror'],
-          ['cd', ':path; git remote update --prune'],
-          ['git clone', '--mirror :url :mirror'],
-          ['cd', ':path; git remote update --prune']
-        ]
-      }
-      let(:expected_commands_args) {
-        [
-          {
-            mirror: test_reference_repo_dir,
-            url: test_url_valid
-          },
-          {
-            path: test_reference_repo_dir
-          },
-          {
-            mirror: test_reference_repo_dir,
-            url: test_url_valid
-          },
-          {
-            path: test_reference_repo_dir
-          }
-        ]
-      }
+    context 'expecting 2 clone attempts' do
+      let(:expected_commands) { clone_cmds + clone_cmds }
+      let(:expected_commands_args) { clone_args + clone_args }
 
-      it 'should work' do
+      it 'should succeed after a single retryable clone failure' do
+        expect(subject).to receive(:clear_cache).and_call_original
         try_with_git_mirror([retriable_error, true], [[test_reference_repo_dir, 1]])
       end
-    end
-  end
 
-  describe '.with_git_mirror' do
-    before(:each) do
-      allow(subject).to receive(:update_reference_repo) {}
-      allow(subject).to receive(:print_formatted_error) {}
-      allow(subject).to receive(:reference_repo_dir).and_return(test_reference_repo_dir)
-      allow(subject).to receive(:reference_repo_lock_file) { create_lockfile_double }
-    end
-
-    def retriable_error
-      %(
-        STDOUT:
-
-        STDERR:
-
-        fatal: bad object ee35b1e14e7c3a53dcc14d82606e5b872f6a05a7
-        fatal: remote did not send all necessary objects
-      ).strip.split("\n").map(&:strip).join("\n")
-    end
-
-    def try_with_git_mirror(responses, results)
-      lambdas = responses.map do |response|
-        if response == true
-          # Simulate successful response
-          ->(url) { url }
-        else
-          # Simulate failed error response
-          ->(_url) { raise Terrapin::ExitStatusError, response }
-        end
+      it 'should fail after two retryable clone failures' do
+        expect(subject).to receive(:clear_cache).twice.and_call_original
+        expect do
+          try_with_git_mirror([retriable_error, retriable_error], [])
+        end.to raise_error(Terrapin::ExitStatusError)
       end
-
-      subject.with_git_mirror(test_url_valid) do |url, attempt|
-        raise 'Not enough responses were provided!' if lambdas.empty?
-
-        yielded << [lambdas.shift.call(url), attempt]
-      end
-
-      expect(lambdas).to be_empty
-      expect(yielded).to eq(results)
-    end
-
-    it 'should yield properly' do
-      expect(subject).to receive(:update_reference_repo).once {}
-      expect(subject).not_to receive(:clear_cache)
-      try_with_git_mirror([true], [[test_reference_repo_dir, 0]])
-    end
-
-    it 'should retry once for retriable errors, clearing and repopulating the cache' do
-      expect(subject).to receive(:clear_cache).with(test_reference_repo_dir, test_url_valid).once {}
-      expect(subject).to receive(:update_reference_repo).twice {}
-      try_with_git_mirror([retriable_error, true], [[test_reference_repo_dir, 1]])
-    end
-
-    it 'should only retry twice at most' do
-      expect(subject).to receive(:clear_cache).with(test_reference_repo_dir, test_url_valid).twice {}
-      expect(subject).to receive(:update_reference_repo).twice {}
-      expect do
-        try_with_git_mirror([retriable_error, retriable_error], [])
-      end.to raise_error(Terrapin::ExitStatusError)
-    end
-
-    it 'should not retry for non-retriable errors' do
-      expect(subject).to receive(:update_reference_repo).once {}
-      expect(subject).not_to receive(:clear_cache)
-      expect do
-        try_with_git_mirror(['Some unexpected error message'], [])
-      end.to raise_error(Terrapin::ExitStatusError)
     end
   end
 
