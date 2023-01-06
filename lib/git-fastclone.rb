@@ -392,34 +392,31 @@ module GitFastClone
     # moment means we only need to synchronize our own threads in case a single
     # submodule url is included twice via multiple dependency paths
     def with_git_mirror(url)
+      retries_allowed ||= 1
+      attempt_number ||= 0
+
       update_reference_repo(url, true)
+      dir = reference_repo_dir(url, reference_dir, using_local_repo)
 
       # Sometimes remote updates involve re-packing objects on a different thread
       # We grab the reference repo lock here just to make sure whatever thread
       # ended up doing the update is done with its housekeeping.
       # This makes sure we have control and unlock when the block returns:
       with_reference_repo_lock(url) do
-        dir = reference_repo_dir(url, reference_dir, using_local_repo)
-        retries_allowed = 1
-        attempt_number = 0
+        yield dir, attempt_number
+      end
+    rescue Terrapin::ExitStatusError => e
+      if retriable_error?(e)
+        print_formatted_error(e)
+        clear_cache(dir, url)
 
-        begin
-          yield dir, attempt_number
-        rescue Terrapin::ExitStatusError => e
-          if retriable_error?(e)
-            print_formatted_error(e)
-            clear_cache(dir, url)
-
-            if attempt_number < retries_allowed
-              update_reference_repo(url, true)
-              attempt_number += 1
-              retry
-            end
-          end
-
-          raise
+        if attempt_number < retries_allowed
+          attempt_number += 1
+          retry
         end
       end
+
+      raise
     end
 
     def usage
