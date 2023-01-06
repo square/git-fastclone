@@ -379,8 +379,9 @@ module GitFastClone
     # To avoid corruption of the cache, if we failed to update or check out we remove
     # the cache directory entirely. This may cause the current clone to fail, but if the
     # underlying error from git is transient it will not affect future clones.
-    def clear_cache(dir)
+    def clear_cache(dir, url)
       FileUtils.remove_entry_secure(dir, force: true)
+      reference_updated.delete(reference_repo_name(url))
     end
 
     # This command will create and bring the mirror up-to-date on-demand,
@@ -407,7 +408,7 @@ module GitFastClone
         rescue Terrapin::ExitStatusError => e
           if retriable_error?(e)
             print_formatted_error(e)
-            clear_cache(dir)
+            clear_cache(dir, url)
 
             if attempt_number < retries_allowed
               update_reference_repo(url, true)

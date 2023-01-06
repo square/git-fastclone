@@ -24,13 +24,15 @@ describe GitFastClone::Runner do
   let(:test_reference_repo_dir) { '/var/tmp/git-fastclone/reference/test_reference_dir' }
   let(:placeholder_arg) { 'PH' }
 
-  let(:lockfile) do
+  def create_lockfile_double
     lockfile = double
     expect(lockfile).to receive(:flock).with(File::LOCK_EX).once
     expect(lockfile).to receive(:flock).with(File::LOCK_UN).once
     expect(lockfile).to receive(:close).once
     lockfile
   end
+
+  let(:lockfile) { create_lockfile_double }
 
   before do
     stub_const('ARGV', ['ssh://git@git.com/git-fastclone.git', 'test_reference_dir'])
@@ -330,12 +332,127 @@ describe GitFastClone::Runner do
     end
   end
 
+  describe '.with_git_mirror (without stubbing)' do
+    def retriable_error
+      %(
+        STDOUT:
+
+        STDERR:
+
+        fatal: bad object ee35b1e14e7c3a53dcc14d82606e5b872f6a05a7
+        fatal: remote did not send all necessary objects
+      ).strip.split("\n").map(&:strip).join("\n")
+    end
+
+    def try_with_git_mirror(responses, results)
+      lambdas = responses.map do |response|
+        if response == true
+          # Simulate successful response
+          ->(url) { url }
+        else
+          # Simulate failed error response
+          ->(_url) { raise Terrapin::ExitStatusError, response }
+        end
+      end
+
+      subject.with_git_mirror(test_url_valid) do |url, attempt|
+        raise 'Not enough responses were provided!' if lambdas.empty?
+
+        yielded << [lambdas.shift.call(url), attempt]
+      end
+
+      expect(lambdas).to be_empty
+      expect(yielded).to eq(results)
+    end
+
+    let(:expected_commands) { [] }
+    let(:expected_commands_args) { [] }
+
+    before(:each) do
+      expect(expected_commands.length).to eq(expected_commands_args.length)
+      allow(Terrapin::CommandLine).to receive(:new) do |*command|
+        expect(expected_commands.length).to be > 0
+        expected_command = expected_commands.shift
+        expected_args = expected_commands_args.shift
+        expect(command).to eq(expected_command)
+        stub = double(Terrapin::CommandLine)
+        expect(stub).to receive(:run).with(expected_args)
+        stub
+      end
+
+      allow(subject).to receive(:print_formatted_error) {}
+      allow(subject).to receive(:reference_repo_dir).and_return(test_reference_repo_dir)
+      allow(subject).to receive(:reference_repo_lock_file) { create_lockfile_double }
+    end
+
+    after(:each) do
+      expect(expected_commands).to be_empty
+    end
+
+    context 'when it clones once' do
+      let(:expected_commands) {
+        [
+          ['git clone', '--mirror :url :mirror'],
+          ['cd', ':path; git remote update --prune']
+        ]
+      }
+      let(:expected_commands_args) {
+        [
+          {
+            mirror: test_reference_repo_dir,
+            url: test_url_valid
+          },
+          {
+            path: test_reference_repo_dir
+          }
+        ]
+      }
+
+      it 'should work' do
+        try_with_git_mirror([true], [[test_reference_repo_dir, 0]])
+      end
+    end
+
+    context 'when it retries once' do
+      let(:expected_commands) {
+        [
+          ['git clone', '--mirror :url :mirror'],
+          ['cd', ':path; git remote update --prune'],
+          ['git clone', '--mirror :url :mirror'],
+          ['cd', ':path; git remote update --prune']
+        ]
+      }
+      let(:expected_commands_args) {
+        [
+          {
+            mirror: test_reference_repo_dir,
+            url: test_url_valid
+          },
+          {
+            path: test_reference_repo_dir
+          },
+          {
+            mirror: test_reference_repo_dir,
+            url: test_url_valid
+          },
+          {
+            path: test_reference_repo_dir
+          }
+        ]
+      }
+
+      it 'should work' do
+        try_with_git_mirror([retriable_error, true], [[test_reference_repo_dir, 1]])
+      end
+    end
+  end
+
   describe '.with_git_mirror' do
     before(:each) do
       allow(subject).to receive(:update_reference_repo) {}
       allow(subject).to receive(:print_formatted_error) {}
-      expect(subject).to receive(:reference_repo_dir).and_return(test_reference_repo_dir)
-      expect(subject).to receive(:reference_repo_lock_file).and_return(lockfile)
+      allow(subject).to receive(:reference_repo_dir).and_return(test_reference_repo_dir)
+      allow(subject).to receive(:reference_repo_lock_file) { create_lockfile_double }
     end
 
     def retriable_error
@@ -377,13 +494,13 @@ describe GitFastClone::Runner do
     end
 
     it 'should retry once for retriable errors, clearing and repopulating the cache' do
-      expect(subject).to receive(:clear_cache).once {}
+      expect(subject).to receive(:clear_cache).with(test_reference_repo_dir, test_url_valid).once {}
       expect(subject).to receive(:update_reference_repo).twice {}
       try_with_git_mirror([retriable_error, true], [[test_reference_repo_dir, 1]])
     end
 
     it 'should only retry twice at most' do
-      expect(subject).to receive(:clear_cache).twice {}
+      expect(subject).to receive(:clear_cache).with(test_reference_repo_dir, test_url_valid).twice {}
       expect(subject).to receive(:update_reference_repo).twice {}
       expect do
         try_with_git_mirror([retriable_error, retriable_error], [])
