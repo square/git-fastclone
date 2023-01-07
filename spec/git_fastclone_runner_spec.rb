@@ -24,13 +24,15 @@ describe GitFastClone::Runner do
   let(:test_reference_repo_dir) { '/var/tmp/git-fastclone/reference/test_reference_dir' }
   let(:placeholder_arg) { 'PH' }
 
-  let(:lockfile) do
+  def create_lockfile_double
     lockfile = double
     expect(lockfile).to receive(:flock).with(File::LOCK_EX).once
     expect(lockfile).to receive(:flock).with(File::LOCK_UN).once
     expect(lockfile).to receive(:close).once
     lockfile
   end
+
+  let(:lockfile) { create_lockfile_double }
 
   before do
     stub_const('ARGV', ['ssh://git@git.com/git-fastclone.git', 'test_reference_dir'])
@@ -331,13 +333,6 @@ describe GitFastClone::Runner do
   end
 
   describe '.with_git_mirror' do
-    before(:each) do
-      allow(subject).to receive(:update_reference_repo) {}
-      allow(subject).to receive(:print_formatted_error) {}
-      expect(subject).to receive(:reference_repo_dir).and_return(test_reference_repo_dir)
-      expect(subject).to receive(:reference_repo_lock_file).and_return(lockfile)
-    end
-
     def retriable_error
       %(
         STDOUT:
@@ -370,28 +365,81 @@ describe GitFastClone::Runner do
       expect(yielded).to eq(results)
     end
 
-    it 'should yield properly' do
-      expect(subject).not_to receive(:clear_cache)
-      try_with_git_mirror([true], [[test_reference_repo_dir, 0]])
+    let(:expected_commands) { [] }
+    let(:expected_commands_args) { [] }
+
+    before(:each) do
+      expect(expected_commands.length).to eq(expected_commands_args.length)
+      allow(Terrapin::CommandLine).to receive(:new) do |*command|
+        expect(expected_commands.length).to be > 0
+        expected_command = expected_commands.shift
+        expected_args = expected_commands_args.shift
+        expect(command).to eq(expected_command)
+        stub = double(Terrapin::CommandLine)
+        expect(stub).to receive(:run).with(expected_args)
+        stub
+      end
+
+      allow(subject).to receive(:print_formatted_error) {}
+      allow(subject).to receive(:reference_repo_dir).and_return(test_reference_repo_dir)
+      allow(subject).to receive(:reference_repo_lock_file) { create_lockfile_double }
     end
 
-    it 'should retry once for retriable errors' do
-      expect(subject).to receive(:clear_cache).once {}
-      try_with_git_mirror([retriable_error, true], [[test_reference_repo_dir, 1]])
+    after(:each) do
+      expect(expected_commands).to be_empty
     end
 
-    it 'should only retry twice at most' do
-      expect(subject).to receive(:clear_cache).twice {}
-      expect do
-        try_with_git_mirror([retriable_error, retriable_error], [])
-      end.to raise_error(Terrapin::ExitStatusError)
+    def clone_cmds
+      [
+        ['git clone', '--mirror :url :mirror'],
+        ['cd', ':path; git remote update --prune']
+      ]
     end
 
-    it 'should not retry for non-retriable errors' do
-      expect(subject).not_to receive(:clear_cache)
-      expect do
-        try_with_git_mirror(['Some unexpected error message'], [])
-      end.to raise_error(Terrapin::ExitStatusError)
+    def clone_args
+      [
+        {
+          mirror: test_reference_repo_dir,
+          url: test_url_valid
+        },
+        {
+          path: test_reference_repo_dir
+        }
+      ]
+    end
+
+    context 'expecting 1 clone attempt' do
+      let(:expected_commands) { clone_cmds }
+      let(:expected_commands_args) { clone_args }
+
+      it 'should succeed with a successful clone' do
+        expect(subject).not_to receive(:clear_cache)
+        try_with_git_mirror([true], [[test_reference_repo_dir, 0]])
+      end
+
+      it 'should fail after a non-retryable clone error' do
+        expect(subject).not_to receive(:clear_cache)
+        expect do
+          try_with_git_mirror(['Some unexpected error message'], [])
+        end.to raise_error(Terrapin::ExitStatusError)
+      end
+    end
+
+    context 'expecting 2 clone attempts' do
+      let(:expected_commands) { clone_cmds + clone_cmds }
+      let(:expected_commands_args) { clone_args + clone_args }
+
+      it 'should succeed after a single retryable clone failure' do
+        expect(subject).to receive(:clear_cache).and_call_original
+        try_with_git_mirror([retriable_error, true], [[test_reference_repo_dir, 1]])
+      end
+
+      it 'should fail after two retryable clone failures' do
+        expect(subject).to receive(:clear_cache).twice.and_call_original
+        expect do
+          try_with_git_mirror([retriable_error, retriable_error], [])
+        end.to raise_error(Terrapin::ExitStatusError)
+      end
     end
   end
 
