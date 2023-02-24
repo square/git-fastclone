@@ -289,6 +289,7 @@ module GitFastClone
     ensure
       # Not strictly necessary to do this unlock as an ensure. If ever exception is caught outside this
       # primitive, ensure protection may come in handy.
+      puts "Waiting for another fastclone process to finish"
       lockfile.flock(File::LOCK_UN)
       lockfile.close
     end
