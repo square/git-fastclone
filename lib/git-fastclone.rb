@@ -217,7 +217,8 @@ module GitFastClone
       with_git_mirror(url) do |mirror, attempt_number|
         clear_clone_dest_if_needed(attempt_number, clone_dest)
 
-        clone_command = '--quiet --reference :mirror :url :path'
+        clone_command = '--reference :mirror :url :path'
+        clone_command += verbose ? '--verbose' : '--quiet'
         clone_command += ' --config :config' unless config.nil?
         Terrapin::CommandLine.new('git clone', clone_command)
                              .run(mirror: mirror.to_s,
