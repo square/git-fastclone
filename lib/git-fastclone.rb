@@ -154,7 +154,7 @@ module GitFastClone
 
         opts.on('--lock-timeout N', 'Timeout in seconds to acquire a lock on any reference repo.
                 Default is 0 which waits indefinitely.') do |timeout_secs|
-          self.flock_timeout_secs = timeout_secs
+          self.flock_timeout_secs = timeout_secs.to_i
         end
       end.parse!
     end
