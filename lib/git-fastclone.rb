@@ -73,6 +73,8 @@ module GitFastClone
 
     DEFAULT_GIT_ALLOW_PROTOCOL = 'file:git:http:https:ssh'
 
+    NO_STDOUT_ERR = ' > /dev/null 2>&1 '
+
     attr_accessor :reference_dir, :prefetch_submodules, :reference_updated, :reference_mutex,
                   :options, :logger, :abs_clone_path, :using_local_repo, :verbose, :color,
                   :flock_timeout_secs
@@ -343,17 +345,18 @@ module GitFastClone
     # that this repo has been updated on this run of fastclone
     def store_updated_repo(url, mirror, repo_name, fail_hard)
       unless Dir.exist?(mirror)
-        Terrapin::CommandLine.new('git clone', '--mirror :url :mirror')
+        Terrapin::CommandLine.new('git clone', '--mirror :url :mirror' + NO_STDOUT_ERR)
                              .run(url: url.to_s, mirror: mirror.to_s)
       end
 
-      Terrapin::CommandLine.new('cd', ':path; git remote update --prune').run(path: mirror)
+      Terrapin::CommandLine.new('cd', ':path; git remote update --prune' + NO_STDOUT_ERR).run(path: mirror)
 
       reference_updated[repo_name] = true
     rescue Terrapin::ExitStatusError => e
       # To avoid corruption of the cache, if we failed to update or check out we remove
       # the cache directory entirely. This may cause the current clone to fail, but if the
       # underlying error from git is transient it will not affect future clones.
+      puts "Removing the fastclone cache."
       FileUtils.remove_entry_secure(mirror, force: true)
       raise e if fail_hard
     end
