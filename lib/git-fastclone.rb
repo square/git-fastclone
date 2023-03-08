@@ -345,11 +345,11 @@ module GitFastClone
     # that this repo has been updated on this run of fastclone
     def store_updated_repo(url, mirror, repo_name, fail_hard)
       unless Dir.exist?(mirror)
-        Terrapin::CommandLine.new('git clone', '--mirror :url :mirror' + NO_STDOUT_ERR)
+        Terrapin::CommandLine.new('git clone', "--mirror :url :mirror#{NO_STDOUT_ERR}")
                              .run(url: url.to_s, mirror: mirror.to_s)
       end
 
-      Terrapin::CommandLine.new('cd', ':path; git remote update --prune' + NO_STDOUT_ERR).run(path: mirror)
+      Terrapin::CommandLine.new('cd', ":path; git remote update --prune#{NO_STDOUT_ERR}").run(path: mirror)
 
       reference_updated[repo_name] = true
     rescue Terrapin::ExitStatusError => e
