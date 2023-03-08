@@ -356,7 +356,7 @@ module GitFastClone
       # To avoid corruption of the cache, if we failed to update or check out we remove
       # the cache directory entirely. This may cause the current clone to fail, but if the
       # underlying error from git is transient it will not affect future clones.
-      puts "Removing the fastclone cache."
+      puts '[WARN] Removing the fastclone cache.'
       FileUtils.remove_entry_secure(mirror, force: true)
       raise e if fail_hard
     end
