@@ -391,8 +391,8 @@ describe GitFastClone::Runner do
 
     def clone_cmds
       [
-        ['git clone', '--mirror :url :mirror'],
-        ['cd', ':path; git remote update --prune']
+        ['git clone', '--mirror :url :mirror > /dev/null 2>&1 '],
+        ['cd', ':path; git remote update --prune > /dev/null 2>&1 ']
       ]
     end
 
