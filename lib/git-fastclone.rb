@@ -16,9 +16,8 @@
 
 require 'optparse'
 require 'fileutils'
-require 'logger'
-require 'terrapin'
 require 'timeout'
+require_relative 'runner_execution'
 
 # Contains helper module UrlHelper and execution class GitFastClone::Runner
 module GitFastClone
@@ -68,6 +67,7 @@ module GitFastClone
     require 'colorize'
 
     include GitFastClone::UrlHelper
+    include RunnerExecution
 
     DEFAULT_REFERENCE_REPO_DIR = '/var/tmp/git-fastclone/reference'
 
@@ -76,7 +76,7 @@ module GitFastClone
     NO_STDOUT_ERR = ' > /dev/null 2>&1 '
 
     attr_accessor :reference_dir, :prefetch_submodules, :reference_updated, :reference_mutex,
-                  :options, :logger, :abs_clone_path, :using_local_repo, :verbose, :color,
+                  :options, :abs_clone_path, :using_local_repo, :verbose, :color,
                   :flock_timeout_secs
 
     def initialize
@@ -95,8 +95,6 @@ module GitFastClone
       self.reference_updated = Hash.new { |hash, key| hash[key] = false }
 
       self.options = {}
-
-      self.logger = nil # Only set in verbose mode
 
       self.abs_clone_path = Dir.pwd
 
@@ -121,8 +119,7 @@ module GitFastClone
       end
 
       puts "Cloning #{path_from_git_url(url)} to #{File.join(abs_clone_path, path)}"
-      Terrapin::CommandLine.environment['GIT_ALLOW_PROTOCOL'] =
-        ENV['GIT_ALLOW_PROTOCOL'] || DEFAULT_GIT_ALLOW_PROTOCOL
+      ENV['GIT_ALLOW_PROTOCOL'] ||= DEFAULT_GIT_ALLOW_PROTOCOL
       clone(url, options[:branch], path, options[:config])
     end
 
@@ -139,11 +136,6 @@ module GitFastClone
 
         opts.on('-v', '--verbose', 'Verbose mode') do
           self.verbose = true
-          self.logger = Logger.new($stdout)
-          logger.formatter = proc do |_severity, _datetime, _progname, msg|
-            "#{msg}\n"
-          end
-          Terrapin::CommandLine.logger = logger
         end
 
         opts.on('-c', '--color', 'Display colored output') do
@@ -219,19 +211,16 @@ module GitFastClone
       with_git_mirror(url) do |mirror, attempt_number|
         clear_clone_dest_if_needed(attempt_number, clone_dest)
 
-        clone_command = '--quiet --reference :mirror :url :path'
-        clone_command += ' --config :config' unless config.nil?
-        Terrapin::CommandLine.new('git clone', clone_command)
-                             .run(mirror: mirror.to_s,
-                                  url: url.to_s,
-                                  path: clone_dest,
-                                  config: config.to_s)
+        clone_commands = ['git', 'clone', verbose ? '--verbose' : '--quiet']
+        clone_commands << "--reference" << mirror.to_s << url.to_s << clone_dest
+        clone_commands << "--config" << config.to_s unless config.nil?
+        fail_pipe_on_error(clone_commands, quiet: !verbose)
       end
 
       # Only checkout if we're changing branches to a non-default branch
       if rev
         Dir.chdir(File.join(abs_clone_path, src_dir)) do
-          Terrapin::CommandLine.new('git checkout', '--quiet :rev').run(rev: rev.to_s)
+          fail_pipe_on_error(['git', 'checkout', '--quiet', rev.to_s], quiet: !verbose)
         end
       end
 
@@ -254,9 +243,12 @@ module GitFastClone
 
       threads = []
       submodule_url_list = []
+      output = ''
+      Dir.chdir(File.join(abs_clone_path, pwd).to_s) {
+        output = fail_on_error('git', 'submodule', 'init', quiet: !verbose)
+      }
 
-      Terrapin::CommandLine.new('cd', ':path; git submodule init 2>&1')
-                           .run(path: File.join(abs_clone_path, pwd)).split("\n").each do |line|
+      output.split("\n").each do |line|
         submodule_path, submodule_url = parse_update_info(line)
         submodule_url_list << submodule_url
 
@@ -270,10 +262,10 @@ module GitFastClone
     def thread_update_submodule(submodule_url, submodule_path, threads, pwd)
       threads << Thread.new do
         with_git_mirror(submodule_url) do |mirror, _|
-          Terrapin::CommandLine.new('cd', ':dir; git submodule update --quiet --reference :mirror :path')
-                               .run(dir: File.join(abs_clone_path, pwd).to_s,
-                                    mirror: mirror.to_s,
-                                    path: submodule_path.to_s)
+
+          Dir.chdir(File.join(abs_clone_path, pwd).to_s) {
+            fail_pipe_on_error(['git', 'submodule', verbose ? nil : '--quiet', 'update', '--reference', mirror.to_s, submodule_path.to_s].compact, quiet: !verbose)
+          }
         end
 
         update_submodules(File.join(pwd, submodule_path), submodule_url)
@@ -345,19 +337,24 @@ module GitFastClone
     # that this repo has been updated on this run of fastclone
     def store_updated_repo(url, mirror, repo_name, fail_hard)
       unless Dir.exist?(mirror)
-        Terrapin::CommandLine.new('git clone', "--mirror :url :mirror#{NO_STDOUT_ERR}")
-                             .run(url: url.to_s, mirror: mirror.to_s)
+        fail_pipe_on_error(['git', 'clone', verbose ? '--verbose' : '--quiet', '--mirror', url.to_s, mirror.to_s], quiet: !verbose)
       end
 
-      Terrapin::CommandLine.new('cd', ":path; git remote update --prune#{NO_STDOUT_ERR}").run(path: mirror)
-
+      Dir.chdir(mirror) {
+        output = fail_on_error(*['git', 'remote', verbose ? '--verbose' : nil, 'update', '--prune'].compact, quiet: !verbose)
+        puts "Output from `git remote update`:\n#{output}" if verbose
+      }
       reference_updated[repo_name] = true
-    rescue Terrapin::ExitStatusError => e
-      # To avoid corruption of the cache, if we failed to update or check out we remove
-      # the cache directory entirely. This may cause the current clone to fail, but if the
-      # underlying error from git is transient it will not affect future clones.
-      puts '[WARN] Removing the fastclone cache.'
-      FileUtils.remove_entry_secure(mirror, force: true)
+    rescue RunnerExecutionRuntimeError => e
+      if retriable_error?(e.output)
+        print_formatted_error(e.output, mirror)
+        clear_cache(mirror, url)
+
+        if attempt_number < retries_allowed
+          attempt_number += 1
+          retry
+        end
+      end
       raise e if fail_hard
     end
 
@@ -374,9 +371,9 @@ module GitFastClone
       error.to_s =~ /^STDERR:\n.*^#{Regexp.union(error_strings)}/m
     end
 
-    def print_formatted_error(error)
+    def print_formatted_error(error, location)
       indented_error = error.to_s.split("\n").map { |s| ">  #{s}\n" }.join
-      puts "Encountered a retriable error:\n#{indented_error}\n\nRemoving the fastclone cache."
+      puts "[INFO] Encountered a retriable error:\n#{indented_error}\n\n[WARN] Removing the fastclone cache at #{location}"
     end
 
     # To avoid corruption of the cache, if we failed to update or check out we remove
@@ -408,9 +405,9 @@ module GitFastClone
       with_reference_repo_lock(url) do
         yield dir, attempt_number
       end
-    rescue Terrapin::ExitStatusError => e
-      if retriable_error?(e)
-        print_formatted_error(e)
+    rescue RunnerExecutionRuntimeError => e
+      if retriable_error?(e.output)
+        print_formatted_error(e.output, dir)
         clear_cache(dir, url)
 
         if attempt_number < retries_allowed

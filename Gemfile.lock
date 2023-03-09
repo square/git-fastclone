@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    git-fastclone (1.3.4)
+    git-fastclone (1.4.0)
       colorize
       terrapin (~> 0.6.0)
 
