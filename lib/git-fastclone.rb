@@ -73,8 +73,6 @@ module GitFastClone
 
     DEFAULT_GIT_ALLOW_PROTOCOL = 'file:git:http:https:ssh'
 
-    NO_STDOUT_ERR = ' > /dev/null 2>&1 '
-
     attr_accessor :reference_dir, :prefetch_submodules, :reference_updated, :reference_mutex,
                   :options, :abs_clone_path, :using_local_repo, :verbose, :color,
                   :flock_timeout_secs
