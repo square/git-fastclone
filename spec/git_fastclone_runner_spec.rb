@@ -50,7 +50,6 @@ describe GitFastClone::Runner do
       expect(subject.reference_mutex).to eq({})
       expect(subject.reference_updated).to eq({})
       expect(subject.options).to eq({})
-      expect(subject.logger).to eq(nil)
     end
   end
 
@@ -87,10 +86,9 @@ describe GitFastClone::Runner do
   end
 
   describe '.clone' do
-    let(:terrapin_commandline_double) { double('new_terrapin_commandline') }
+    let(:runner_execution_double) { double('runner_execution') }
     before(:each) do
-      allow(terrapin_commandline_double).to receive(:run) {}
-      expect(Time).to receive(:now).twice { 0 }
+      allow(runner_execution_double).to receive(:fail_pipe_on_error) {}
       allow(Dir).to receive(:pwd) { '/pwd' }
       allow(Dir).to receive(:chdir).and_yield
       allow(subject).to receive(:with_git_mirror).and_yield('/cache', 0)
@@ -98,36 +96,23 @@ describe GitFastClone::Runner do
     end
 
     it 'should clone correctly' do
-      expect(Terrapin::CommandLine).to receive(:new).with(
-        'git clone',
-        '--quiet --reference :mirror :url :path'
-      ) { terrapin_commandline_double }
-      expect(Terrapin::CommandLine).to receive(:new).with(
-        'git checkout',
-        '--quiet :rev'
-      ) { terrapin_commandline_double }
-      expect(terrapin_commandline_double).to receive(:run).with(
-        mirror: '/cache',
-        url: placeholder_arg,
-        path: '/pwd/.',
-        config: ''
-      )
-      expect(terrapin_commandline_double).to receive(:run).with(rev: placeholder_arg)
+      expect(subject).to receive(:fail_pipe_on_error).with(
+        ["git", "checkout", "--quiet", "PH"],
+        {:quiet=>true}
+      ) { runner_execution_double }
+      expect(subject).to receive(:fail_pipe_on_error).with(
+        ["git", "clone", "--quiet", "--reference", "/cache", "PH", "/pwd/."],
+        {:quiet=>true}
+      ) { runner_execution_double }
 
       subject.clone(placeholder_arg, placeholder_arg, '.', nil)
     end
 
     it 'should clone correctly with custom configs' do
-      expect(Terrapin::CommandLine).to receive(:new).with(
-        'git clone',
-        '--quiet --reference :mirror :url :path --config :config'
-      ) { terrapin_commandline_double }
-      expect(terrapin_commandline_double).to receive(:run).with(
-        mirror: '/cache',
-        url: placeholder_arg,
-        path: '/pwd/.',
-        config: 'config'
-      )
+      expect(subject).to receive(:fail_pipe_on_error).with(
+        ["git", "clone", "--quiet", "--reference", "/cache", "PH", "/pwd/.", "--config", "config"],
+        {:quiet=>true}
+      ) { runner_execution_double }
 
       subject.clone(placeholder_arg, nil, '.', 'config')
     end
@@ -294,36 +279,35 @@ describe GitFastClone::Runner do
 
   describe '.store_updated_repo' do
     context 'when fail_hard is true' do
-      it 'should raise a Terrapin error' do
-        terrapin_commandline_double = double('new_terrapin_commandline')
-        allow(terrapin_commandline_double).to receive(:run) { raise Terrapin::ExitStatusError }
-        allow(Terrapin::CommandLine).to receive(:new) { terrapin_commandline_double }
+      it 'should raise a Runtime error and clear cache' do
+        status = double('status')
+        allow(status).to receive(:exitstatus).and_return(1)
+        ex = RunnerExecution::RunnerExecutionRuntimeError.new(status, 'cmd')
+        allow(subject).to receive(:fail_pipe_on_error) { raise ex }
         expect(FileUtils).to receive(:remove_entry_secure).with(placeholder_arg, force: true)
-        expect do
+        expect {
           subject.store_updated_repo(placeholder_arg, placeholder_arg, placeholder_arg, true)
-        end.to raise_error(Terrapin::ExitStatusError)
+        }.to raise_error(ex)
       end
     end
 
     context 'when fail_hard is false' do
-      it 'should not raise a terrapin error' do
-        terrapin_commandline_double = double('new_terrapin_commandline')
-        allow(terrapin_commandline_double).to receive(:run) { raise Terrapin::ExitStatusError }
-        allow(Terrapin::CommandLine).to receive(:new) { terrapin_commandline_double }
+      it 'should not raise a Runtime error but clear cache' do
+        status = double('status')
+        allow(status).to receive(:exitstatus).and_return(1)
+        ex = RunnerExecution::RunnerExecutionRuntimeError.new(status, 'cmd')
+        allow(subject).to receive(:fail_pipe_on_error) { raise ex }
         expect(FileUtils).to receive(:remove_entry_secure).with(placeholder_arg, force: true)
-
-        expect do
+        expect {
           subject.store_updated_repo(placeholder_arg, placeholder_arg, placeholder_arg, false)
-        end.not_to raise_error
+        }.to_not raise_error(ex)
       end
     end
 
     let(:placeholder_hash) { {} }
 
     it 'should correctly update the hash' do
-      terrapin_commandline_double = double('new_terrapin_commandline')
-      allow(terrapin_commandline_double).to receive(:run) {}
-      allow(Terrapin::CommandLine).to receive(:new) { terrapin_commandline_double }
+      allow(subject).to receive(:fail_pipe_on_error)
       allow(Dir).to receive(:chdir) {}
 
       subject.reference_updated = placeholder_hash
@@ -351,7 +335,11 @@ describe GitFastClone::Runner do
           ->(url) { url }
         else
           # Simulate failed error response
-          ->(_url) { raise Terrapin::ExitStatusError, response }
+          ->(_url) {
+            status = double('status')
+            allow(status).to receive(:exitstatus).and_return(1)
+            raise RunnerExecution::RunnerExecutionRuntimeError.new(status, 'cmd', response)
+          }
         end
       end
 
@@ -366,19 +354,22 @@ describe GitFastClone::Runner do
     end
 
     let(:expected_commands) { [] }
-    let(:expected_commands_args) { [] }
 
     before(:each) do
-      expect(expected_commands.length).to eq(expected_commands_args.length)
-      allow(Terrapin::CommandLine).to receive(:new) do |*command|
+      allow(subject).to receive(:fail_pipe_on_error) { |*params|
+        command = params[0]
         expect(expected_commands.length).to be > 0
         expected_command = expected_commands.shift
-        expected_args = expected_commands_args.shift
         expect(command).to eq(expected_command)
-        stub = double(Terrapin::CommandLine)
-        expect(stub).to receive(:run).with(expected_args)
-        stub
-      end
+      }
+      allow(subject).to receive(:fail_on_error) { |*params|
+        # last one is an argument `quiet:`
+        command = params.first(params.size-1)
+        expect(expected_commands.length).to be > 0
+        expected_command = expected_commands.shift
+        expect(command).to eq(expected_command)
+      }
+      allow(Dir).to receive(:chdir).and_yield
 
       allow(subject).to receive(:print_formatted_error) {}
       allow(subject).to receive(:reference_repo_dir).and_return(test_reference_repo_dir)
@@ -391,26 +382,13 @@ describe GitFastClone::Runner do
 
     def clone_cmds
       [
-        ['git clone', '--mirror :url :mirror > /dev/null 2>&1 '],
-        ['cd', ':path; git remote update --prune > /dev/null 2>&1 ']
-      ]
-    end
-
-    def clone_args
-      [
-        {
-          mirror: test_reference_repo_dir,
-          url: test_url_valid
-        },
-        {
-          path: test_reference_repo_dir
-        }
+        ['git', 'clone', '--quiet', '--mirror', test_url_valid, test_reference_repo_dir],
+        ['git', 'remote', 'update', '--prune']
       ]
     end
 
     context 'expecting 1 clone attempt' do
       let(:expected_commands) { clone_cmds }
-      let(:expected_commands_args) { clone_args }
 
       it 'should succeed with a successful clone' do
         expect(subject).not_to receive(:clear_cache)
@@ -421,7 +399,7 @@ describe GitFastClone::Runner do
         expect(subject).not_to receive(:clear_cache)
         expect do
           try_with_git_mirror(['Some unexpected error message'], [])
-        end.to raise_error(Terrapin::ExitStatusError)
+        end.to raise_error(RunnerExecution::RunnerExecutionRuntimeError)
       end
     end
 
@@ -438,7 +416,7 @@ describe GitFastClone::Runner do
         expect(subject).to receive(:clear_cache).twice.and_call_original
         expect do
           try_with_git_mirror([retriable_error, retriable_error], [])
-        end.to raise_error(Terrapin::ExitStatusError)
+        end.to raise_error(RunnerExecution::RunnerExecutionRuntimeError)
       end
     end
   end
