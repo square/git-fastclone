@@ -358,7 +358,6 @@ module GitFastClone
       # To avoid corruption of the cache, if we failed to update or check out we remove
       # the cache directory entirely. This may cause the current clone to fail, but if the
       # underlying error from git is transient it will not affect future clones.
-      puts 'elton checkpoint1'
       clear_cache(mirror, url)
       raise e if fail_hard
     end
@@ -376,7 +375,7 @@ module GitFastClone
       error.to_s =~ /^STDERR:\n.*^#{Regexp.union(error_strings)}/m
     end
 
-    def print_formatted_error(error, _location)
+    def print_formatted_error(error)
       indented_error = error.to_s.split("\n").map { |s| ">  #{s}\n" }.join
       puts "[INFO] Encountered a retriable error:\n#{indented_error}\n"
     end
@@ -413,7 +412,7 @@ module GitFastClone
       end
     rescue RunnerExecutionRuntimeError => e
       if retriable_error?(e.output)
-        print_formatted_error(e.output, dir)
+        print_formatted_error(e.output)
         clear_cache(dir, url)
 
         if attempt_number < retries_allowed
