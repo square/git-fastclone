@@ -37,6 +37,5 @@ Gem::Specification.new do |gem|
   gem.required_ruby_version = '>= 2.7'
 
   gem.add_runtime_dependency 'colorize'
-  gem.add_runtime_dependency 'terrapin', '~> 0.6.0'
   gem.metadata['rubygems_mfa_required'] = 'true'
 end
