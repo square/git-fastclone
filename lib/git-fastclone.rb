@@ -260,7 +260,6 @@ module GitFastClone
     def thread_update_submodule(submodule_url, submodule_path, threads, pwd)
       threads << Thread.new do
         with_git_mirror(submodule_url) do |mirror, _|
-
           Dir.chdir(File.join(abs_clone_path, pwd).to_s) {
             fail_pipe_on_error(['git', 'submodule', verbose ? nil : '--quiet', 'update', '--reference', mirror.to_s, submodule_path.to_s].compact, quiet: !verbose)
           }
@@ -339,20 +338,22 @@ module GitFastClone
       end
 
       Dir.chdir(mirror) {
-        output = fail_on_error(*['git', 'remote', verbose ? '--verbose' : nil, 'update', '--prune'].compact, quiet: !verbose)
-        puts "Output from `git remote update`:\n#{output}" if verbose
+        cmd = ['git', 'remote', verbose ? '--verbose' : nil, 'update', '--prune'].compact
+        if verbose
+          fail_pipe_on_error(cmd, quiet: !verbose)
+        else
+          # Because above operation might spit out a lot to stderr, we use this to swallow them
+          # and only display if the operation return non 0 exit code
+          fail_on_error(*cmd, quiet: !verbose)
+        end
       }
       reference_updated[repo_name] = true
     rescue RunnerExecutionRuntimeError => e
-      if retriable_error?(e.output)
-        print_formatted_error(e.output, mirror)
-        clear_cache(mirror, url)
-
-        if attempt_number < retries_allowed
-          attempt_number += 1
-          retry
-        end
-      end
+      # To avoid corruption of the cache, if we failed to update or check out we remove
+      # the cache directory entirely. This may cause the current clone to fail, but if the
+      # underlying error from git is transient it will not affect future clones.
+      puts 'elton checkpoint1'
+      clear_cache(mirror, url)
       raise e if fail_hard
     end
 
@@ -371,13 +372,14 @@ module GitFastClone
 
     def print_formatted_error(error, location)
       indented_error = error.to_s.split("\n").map { |s| ">  #{s}\n" }.join
-      puts "[INFO] Encountered a retriable error:\n#{indented_error}\n\n[WARN] Removing the fastclone cache at #{location}"
+      puts "[INFO] Encountered a retriable error:\n#{indented_error}\n"
     end
 
     # To avoid corruption of the cache, if we failed to update or check out we remove
     # the cache directory entirely. This may cause the current clone to fail, but if the
     # underlying error from git is transient it will not affect future clones.
     def clear_cache(dir, url)
+      puts "[WARN] Removing the fastclone cache at #{dir}"
       FileUtils.remove_entry_secure(dir, force: true)
       reference_updated.delete(reference_repo_name(url))
     end
@@ -414,7 +416,7 @@ module GitFastClone
         end
       end
 
-      raise
+      raise e
     end
 
     def usage
