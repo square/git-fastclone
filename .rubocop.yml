@@ -3,6 +3,8 @@ inherit_from: .rubocop_todo.yml
 AllCops:
   TargetRubyVersion: 2.7
   NewCops: enable
+  Exclude:
+    - 'lib/runner_execution.rb'
 
 Naming/FileName:
   Exclude:
