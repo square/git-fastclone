@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require 'open3'
 require 'logger'
 
@@ -23,7 +25,7 @@ module RunnerExecution
     print_command('Running Pipeline:', cmd_list) unless quiet
 
     env = opts.delete(:env) { {} }
-    raise ArgumentError, "The :env option must be a hash, not #{env.inspect}" if !env.is_a?(Hash)
+    raise ArgumentError, "The :env option must be a hash, not #{env.inspect}" unless env.is_a?(Hash)
 
     cmd_list.map! { |cmd| shell_safe(cmd).unshift(env) }
 

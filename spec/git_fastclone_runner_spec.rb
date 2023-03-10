@@ -97,12 +97,12 @@ describe GitFastClone::Runner do
 
     it 'should clone correctly' do
       expect(subject).to receive(:fail_pipe_on_error).with(
-        ["git", "checkout", "--quiet", "PH"],
-        {:quiet=>true}
+        ['git', 'checkout', '--quiet', 'PH'],
+        { quiet: true }
       ) { runner_execution_double }
       expect(subject).to receive(:fail_pipe_on_error).with(
-        ["git", "clone", "--quiet", "--reference", "/cache", "PH", "/pwd/."],
-        {:quiet=>true}
+        ['git', 'clone', '--quiet', '--reference', '/cache', 'PH', '/pwd/.'],
+        { quiet: true }
       ) { runner_execution_double }
 
       subject.clone(placeholder_arg, placeholder_arg, '.', nil)
@@ -110,8 +110,8 @@ describe GitFastClone::Runner do
 
     it 'should clone correctly with custom configs' do
       expect(subject).to receive(:fail_pipe_on_error).with(
-        ["git", "clone", "--quiet", "--reference", "/cache", "PH", "/pwd/.", "--config", "config"],
-        {:quiet=>true}
+        ['git', 'clone', '--quiet', '--reference', '/cache', 'PH', '/pwd/.', '--config', 'config'],
+        { quiet: true }
       ) { runner_execution_double }
 
       subject.clone(placeholder_arg, nil, '.', 'config')
@@ -285,9 +285,9 @@ describe GitFastClone::Runner do
         ex = RunnerExecution::RunnerExecutionRuntimeError.new(status, 'cmd')
         allow(subject).to receive(:fail_pipe_on_error) { raise ex }
         expect(FileUtils).to receive(:remove_entry_secure).with(placeholder_arg, force: true)
-        expect {
+        expect do
           subject.store_updated_repo(placeholder_arg, placeholder_arg, placeholder_arg, true)
-        }.to raise_error(ex)
+        end.to raise_error(ex)
       end
     end
 
@@ -298,9 +298,9 @@ describe GitFastClone::Runner do
         ex = RunnerExecution::RunnerExecutionRuntimeError.new(status, 'cmd')
         allow(subject).to receive(:fail_pipe_on_error) { raise ex }
         expect(FileUtils).to receive(:remove_entry_secure).with(placeholder_arg, force: true)
-        expect {
+        expect do
           subject.store_updated_repo(placeholder_arg, placeholder_arg, placeholder_arg, false)
-        }.to_not raise_error(ex)
+        end.to_not raise_error(ex)
       end
     end
 
@@ -335,7 +335,7 @@ describe GitFastClone::Runner do
           ->(url) { url }
         else
           # Simulate failed error response
-          ->(_url) {
+          lambda { |_url|
             status = double('status')
             allow(status).to receive(:exitstatus).and_return(1)
             raise RunnerExecution::RunnerExecutionRuntimeError.new(status, 'cmd', response)
@@ -364,7 +364,7 @@ describe GitFastClone::Runner do
       }
       allow(subject).to receive(:fail_on_error) { |*params|
         # last one is an argument `quiet:`
-        command = params.first(params.size-1)
+        command = params.first(params.size - 1)
         expect(expected_commands.length).to be > 0
         expected_command = expected_commands.shift
         expect(command).to eq(expected_command)

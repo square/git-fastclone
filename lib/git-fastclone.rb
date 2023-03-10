@@ -210,8 +210,8 @@ module GitFastClone
         clear_clone_dest_if_needed(attempt_number, clone_dest)
 
         clone_commands = ['git', 'clone', verbose ? '--verbose' : '--quiet']
-        clone_commands << "--reference" << mirror.to_s << url.to_s << clone_dest
-        clone_commands << "--config" << config.to_s unless config.nil?
+        clone_commands << '--reference' << mirror.to_s << url.to_s << clone_dest
+        clone_commands << '--config' << config.to_s unless config.nil?
         fail_pipe_on_error(clone_commands, quiet: !verbose)
       end
 
@@ -242,9 +242,9 @@ module GitFastClone
       threads = []
       submodule_url_list = []
       output = ''
-      Dir.chdir(File.join(abs_clone_path, pwd).to_s) {
+      Dir.chdir(File.join(abs_clone_path, pwd).to_s) do
         output = fail_on_error('git', 'submodule', 'init', quiet: !verbose)
-      }
+      end
 
       output.split("\n").each do |line|
         submodule_path, submodule_url = parse_update_info(line)
@@ -260,9 +260,12 @@ module GitFastClone
     def thread_update_submodule(submodule_url, submodule_path, threads, pwd)
       threads << Thread.new do
         with_git_mirror(submodule_url) do |mirror, _|
-          Dir.chdir(File.join(abs_clone_path, pwd).to_s) {
-            fail_pipe_on_error(['git', 'submodule', verbose ? nil : '--quiet', 'update', '--reference', mirror.to_s, submodule_path.to_s].compact, quiet: !verbose)
-          }
+          Dir.chdir(File.join(abs_clone_path, pwd).to_s) do
+            fail_pipe_on_error(
+              ['git', 'submodule', verbose ? nil : '--quiet', 'update', '--reference', mirror.to_s,
+               submodule_path.to_s].compact, quiet: !verbose
+            )
+          end
         end
 
         update_submodules(File.join(pwd, submodule_path), submodule_url)
@@ -334,10 +337,13 @@ module GitFastClone
     # that this repo has been updated on this run of fastclone
     def store_updated_repo(url, mirror, repo_name, fail_hard)
       unless Dir.exist?(mirror)
-        fail_pipe_on_error(['git', 'clone', verbose ? '--verbose' : '--quiet', '--mirror', url.to_s, mirror.to_s], quiet: !verbose)
+        fail_pipe_on_error(
+          ['git', 'clone', verbose ? '--verbose' : '--quiet', '--mirror', url.to_s,
+           mirror.to_s], quiet: !verbose
+        )
       end
 
-      Dir.chdir(mirror) {
+      Dir.chdir(mirror) do
         cmd = ['git', 'remote', verbose ? '--verbose' : nil, 'update', '--prune'].compact
         if verbose
           fail_pipe_on_error(cmd, quiet: !verbose)
@@ -346,7 +352,7 @@ module GitFastClone
           # and only display if the operation return non 0 exit code
           fail_on_error(*cmd, quiet: !verbose)
         end
-      }
+      end
       reference_updated[repo_name] = true
     rescue RunnerExecutionRuntimeError => e
       # To avoid corruption of the cache, if we failed to update or check out we remove
@@ -370,7 +376,7 @@ module GitFastClone
       error.to_s =~ /^STDERR:\n.*^#{Regexp.union(error_strings)}/m
     end
 
-    def print_formatted_error(error, location)
+    def print_formatted_error(error, _location)
       indented_error = error.to_s.split("\n").map { |s| ">  #{s}\n" }.join
       puts "[INFO] Encountered a retriable error:\n#{indented_error}\n"
     end
