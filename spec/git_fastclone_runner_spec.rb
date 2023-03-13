@@ -319,10 +319,6 @@ describe GitFastClone::Runner do
   describe '.with_git_mirror' do
     def retriable_error
       %(
-        STDOUT:
-
-        STDERR:
-
         fatal: bad object ee35b1e14e7c3a53dcc14d82606e5b872f6a05a7
         fatal: remote did not send all necessary objects
       ).strip.split("\n").map(&:strip).join("\n")
@@ -423,7 +419,7 @@ describe GitFastClone::Runner do
 
   describe '.retriable_error?' do
     def format_error(error)
-      error_wrapper = "STDOUT:\n\nSTDERR:\n#{error}"
+      error_wrapper = "#{error}"
       error_wrapper.strip.lines.map(&:strip).join("\n")
     end
 

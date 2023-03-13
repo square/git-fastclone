@@ -364,15 +364,15 @@ module GitFastClone
 
     def retriable_error?(error)
       error_strings = [
-        'fatal: missing blob object',
-        'fatal: remote did not send all necessary objects',
-        /fatal: packed object [a-z0-9]+ \(stored in .*?\) is corrupt/,
-        /fatal: pack has \d+ unresolved delta/,
-        'error: unable to read sha1 file of ',
-        'fatal: did not receive expected object',
+        /^fatal: missing blob object/,
+        /^fatal: remote did not send all necessary objects/,
+        /^fatal: packed object [a-z0-9]+ \(stored in .*?\) is corrupt/,
+        /^fatal: pack has \d+ unresolved delta/,
+        /^error: unable to read sha1 file of /,
+        /^fatal: did not receive expected object/,
         /^fatal: unable to read tree [a-z0-9]+\n^warning: Clone succeeded, but checkout failed/
       ]
-      error.to_s =~ /^STDERR:\n.*^#{Regexp.union(error_strings)}/m
+      error.to_s =~ /.*#{Regexp.union(error_strings)}/m
     end
 
     def print_formatted_error(error)
