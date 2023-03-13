@@ -36,7 +36,7 @@ describe GitFastClone::Runner do
 
   before do
     stub_const('ARGV', ['ssh://git@git.com/git-fastclone.git', 'test_reference_dir'])
-    allow(STDOUT).to receive(:puts)
+    allow($stdout).to receive(:puts)
   end
 
   let(:yielded) { [] }
@@ -393,7 +393,8 @@ describe GitFastClone::Runner do
 
     def clone_cmds(verbose: false)
       [
-        ['git', 'clone', verbose ? '--verbose' : '--quiet', '--mirror', test_url_valid, test_reference_repo_dir],
+        ['git', 'clone', verbose ? '--verbose' : '--quiet', '--mirror', test_url_valid,
+         test_reference_repo_dir],
         ['git', 'remote', verbose ? '--verbose' : nil, 'update', '--prune'].compact
       ]
     end
@@ -401,7 +402,7 @@ describe GitFastClone::Runner do
     context 'expecting 1 clone attempt' do
       context 'with verbose mode on' do
         before { subject.verbose = true }
-        let(:expected_commands) { clone_cmds(verbose:true) }
+        let(:expected_commands) { clone_cmds(verbose: true) }
 
         it 'should succeed with a successful clone' do
           expect(subject).not_to receive(:clear_cache)
@@ -453,7 +454,7 @@ describe GitFastClone::Runner do
 
   describe '.retriable_error?' do
     def format_error(error)
-      error_wrapper = "#{error}"
+      error_wrapper = error.to_s
       error_wrapper.strip.lines.map(&:strip).join("\n")
     end
 
