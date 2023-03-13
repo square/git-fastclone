@@ -36,6 +36,7 @@ describe GitFastClone::Runner do
 
   before do
     stub_const('ARGV', ['ssh://git@git.com/git-fastclone.git', 'test_reference_dir'])
+    allow(STDOUT).to receive(:puts)
   end
 
   let(:yielded) { [] }
@@ -103,6 +104,20 @@ describe GitFastClone::Runner do
       expect(subject).to receive(:fail_pipe_on_error).with(
         ['git', 'clone', '--quiet', '--reference', '/cache', 'PH', '/pwd/.'],
         { quiet: true }
+      ) { runner_execution_double }
+
+      subject.clone(placeholder_arg, placeholder_arg, '.', nil)
+    end
+
+    it 'should clone correctly with verbose mode on' do
+      subject.verbose = true
+      expect(subject).to receive(:fail_pipe_on_error).with(
+        ['git', 'checkout', '--quiet', 'PH'],
+        { quiet: false }
+      ) { runner_execution_double }
+      expect(subject).to receive(:fail_pipe_on_error).with(
+        ['git', 'clone', '--verbose', '--reference', '/cache', 'PH', '/pwd/.'],
+        { quiet: false }
       ) { runner_execution_double }
 
       subject.clone(placeholder_arg, placeholder_arg, '.', nil)
@@ -300,7 +315,7 @@ describe GitFastClone::Runner do
         expect(FileUtils).to receive(:remove_entry_secure).with(placeholder_arg, force: true)
         expect do
           subject.store_updated_repo(placeholder_arg, placeholder_arg, placeholder_arg, false)
-        end.to_not raise_error(ex)
+        end.to_not raise_error
       end
     end
 
@@ -376,26 +391,45 @@ describe GitFastClone::Runner do
       expect(expected_commands).to be_empty
     end
 
-    def clone_cmds
+    def clone_cmds(verbose: false)
       [
-        ['git', 'clone', '--quiet', '--mirror', test_url_valid, test_reference_repo_dir],
-        ['git', 'remote', 'update', '--prune']
+        ['git', 'clone', verbose ? '--verbose' : '--quiet', '--mirror', test_url_valid, test_reference_repo_dir],
+        ['git', 'remote', verbose ? '--verbose' : nil, 'update', '--prune'].compact
       ]
     end
 
     context 'expecting 1 clone attempt' do
-      let(:expected_commands) { clone_cmds }
+      context 'with verbose mode on' do
+        before { subject.verbose = true }
+        let(:expected_commands) { clone_cmds(verbose:true) }
 
-      it 'should succeed with a successful clone' do
-        expect(subject).not_to receive(:clear_cache)
-        try_with_git_mirror([true], [[test_reference_repo_dir, 0]])
+        it 'should succeed with a successful clone' do
+          expect(subject).not_to receive(:clear_cache)
+          try_with_git_mirror([true], [[test_reference_repo_dir, 0]])
+        end
+
+        it 'should fail after a non-retryable clone error' do
+          expect(subject).not_to receive(:clear_cache)
+          expect do
+            try_with_git_mirror(['Some unexpected error message'], [])
+          end.to raise_error(RunnerExecution::RunnerExecutionRuntimeError)
+        end
       end
 
-      it 'should fail after a non-retryable clone error' do
-        expect(subject).not_to receive(:clear_cache)
-        expect do
-          try_with_git_mirror(['Some unexpected error message'], [])
-        end.to raise_error(RunnerExecution::RunnerExecutionRuntimeError)
+      context 'with verbose mode off' do
+        let(:expected_commands) { clone_cmds }
+
+        it 'should succeed with a successful clone' do
+          expect(subject).not_to receive(:clear_cache)
+          try_with_git_mirror([true], [[test_reference_repo_dir, 0]])
+        end
+
+        it 'should fail after a non-retryable clone error' do
+          expect(subject).not_to receive(:clear_cache)
+          expect do
+            try_with_git_mirror(['Some unexpected error message'], [])
+          end.to raise_error(RunnerExecution::RunnerExecutionRuntimeError)
+        end
       end
     end
 
