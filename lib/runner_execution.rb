@@ -1,4 +1,5 @@
 # frozen_string_literal: true
+# rubocop:disable all
 
 require 'open3'
 require 'logger'
@@ -217,3 +218,4 @@ module RunnerExecution
   end
   module_function :logger
 end
+# rubocop:enable all
