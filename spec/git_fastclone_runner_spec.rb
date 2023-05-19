@@ -89,7 +89,7 @@ describe GitFastClone::Runner do
   describe '.clone' do
     let(:runner_execution_double) { double('runner_execution') }
     before(:each) do
-      allow(runner_execution_double).to receive(:fail_pipe_on_error) {}
+      allow(runner_execution_double).to receive(:fail_on_error) {}
       allow(Dir).to receive(:pwd) { '/pwd' }
       allow(Dir).to receive(:chdir).and_yield
       allow(subject).to receive(:with_git_mirror).and_yield('/cache', 0)
@@ -97,12 +97,12 @@ describe GitFastClone::Runner do
     end
 
     it 'should clone correctly' do
-      expect(subject).to receive(:fail_pipe_on_error).with(
-        ['git', 'checkout', '--quiet', 'PH'],
+      expect(subject).to receive(:fail_on_error).with(
+        'git', 'checkout', '--quiet', 'PH',
         { quiet: true }
       ) { runner_execution_double }
-      expect(subject).to receive(:fail_pipe_on_error).with(
-        ['git', 'clone', '--quiet', '--reference', '/cache', 'PH', '/pwd/.'],
+      expect(subject).to receive(:fail_on_error).with(
+        'git', 'clone', '--quiet', '--reference', '/cache', 'PH', '/pwd/.',
         { quiet: true }
       ) { runner_execution_double }
 
@@ -111,12 +111,12 @@ describe GitFastClone::Runner do
 
     it 'should clone correctly with verbose mode on' do
       subject.verbose = true
-      expect(subject).to receive(:fail_pipe_on_error).with(
-        ['git', 'checkout', '--quiet', 'PH'],
+      expect(subject).to receive(:fail_on_error).with(
+        'git', 'checkout', '--quiet', 'PH',
         { quiet: false }
       ) { runner_execution_double }
-      expect(subject).to receive(:fail_pipe_on_error).with(
-        ['git', 'clone', '--verbose', '--reference', '/cache', 'PH', '/pwd/.'],
+      expect(subject).to receive(:fail_on_error).with(
+        'git', 'clone', '--verbose', '--reference', '/cache', 'PH', '/pwd/.',
         { quiet: false }
       ) { runner_execution_double }
 
@@ -124,8 +124,8 @@ describe GitFastClone::Runner do
     end
 
     it 'should clone correctly with custom configs' do
-      expect(subject).to receive(:fail_pipe_on_error).with(
-        ['git', 'clone', '--quiet', '--reference', '/cache', 'PH', '/pwd/.', '--config', 'config'],
+      expect(subject).to receive(:fail_on_error).with(
+        'git', 'clone', '--quiet', '--reference', '/cache', 'PH', '/pwd/.', '--config', 'config',
         { quiet: true }
       ) { runner_execution_double }
 
@@ -298,7 +298,7 @@ describe GitFastClone::Runner do
         status = double('status')
         allow(status).to receive(:exitstatus).and_return(1)
         ex = RunnerExecution::RunnerExecutionRuntimeError.new(status, 'cmd')
-        allow(subject).to receive(:fail_pipe_on_error) { raise ex }
+        allow(subject).to receive(:fail_on_error) { raise ex }
         expect(FileUtils).to receive(:remove_entry_secure).with(placeholder_arg, force: true)
         expect do
           subject.store_updated_repo(placeholder_arg, placeholder_arg, placeholder_arg, true)
@@ -311,7 +311,7 @@ describe GitFastClone::Runner do
         status = double('status')
         allow(status).to receive(:exitstatus).and_return(1)
         ex = RunnerExecution::RunnerExecutionRuntimeError.new(status, 'cmd')
-        allow(subject).to receive(:fail_pipe_on_error) { raise ex }
+        allow(subject).to receive(:fail_on_error) { raise ex }
         expect(FileUtils).to receive(:remove_entry_secure).with(placeholder_arg, force: true)
         expect do
           subject.store_updated_repo(placeholder_arg, placeholder_arg, placeholder_arg, false)
@@ -322,7 +322,7 @@ describe GitFastClone::Runner do
     let(:placeholder_hash) { {} }
 
     it 'should correctly update the hash' do
-      allow(subject).to receive(:fail_pipe_on_error)
+      allow(subject).to receive(:fail_on_error)
       allow(Dir).to receive(:chdir) {}
 
       subject.reference_updated = placeholder_hash
@@ -367,12 +367,6 @@ describe GitFastClone::Runner do
     let(:expected_commands) { [] }
 
     before(:each) do
-      allow(subject).to receive(:fail_pipe_on_error) { |*params|
-        command = params[0]
-        expect(expected_commands.length).to be > 0
-        expected_command = expected_commands.shift
-        expect(command).to eq(expected_command)
-      }
       allow(subject).to receive(:fail_on_error) { |*params|
         # last one is an argument `quiet:`
         command = params.first(params.size - 1)
