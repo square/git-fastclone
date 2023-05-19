@@ -212,13 +212,13 @@ module GitFastClone
         clone_commands = ['git', 'clone', verbose ? '--verbose' : '--quiet']
         clone_commands << '--reference' << mirror.to_s << url.to_s << clone_dest
         clone_commands << '--config' << config.to_s unless config.nil?
-        fail_pipe_on_error(clone_commands, quiet: !verbose)
+        fail_on_error(*clone_commands, quiet: !verbose)
       end
 
       # Only checkout if we're changing branches to a non-default branch
       if rev
         Dir.chdir(File.join(abs_clone_path, src_dir)) do
-          fail_pipe_on_error(['git', 'checkout', '--quiet', rev.to_s], quiet: !verbose)
+          fail_on_error('git', 'checkout', '--quiet', rev.to_s, quiet: !verbose)
         end
       end
 
@@ -261,10 +261,9 @@ module GitFastClone
       threads << Thread.new do
         with_git_mirror(submodule_url) do |mirror, _|
           Dir.chdir(File.join(abs_clone_path, pwd).to_s) do
-            fail_pipe_on_error(
-              ['git', 'submodule', verbose ? nil : '--quiet', 'update', '--reference', mirror.to_s,
-               submodule_path.to_s].compact, quiet: !verbose
-            )
+            cmd = ['git', 'submodule', verbose ? nil : '--quiet', 'update', '--reference', mirror.to_s,
+                   submodule_path.to_s].compact
+            fail_on_error(*cmd, quiet: !verbose)
           end
         end
 
@@ -337,21 +336,13 @@ module GitFastClone
     # that this repo has been updated on this run of fastclone
     def store_updated_repo(url, mirror, repo_name, fail_hard)
       unless Dir.exist?(mirror)
-        fail_pipe_on_error(
-          ['git', 'clone', verbose ? '--verbose' : '--quiet', '--mirror', url.to_s,
-           mirror.to_s], quiet: !verbose
-        )
+        fail_on_error('git', 'clone', verbose ? '--verbose' : '--quiet', '--mirror', url.to_s, mirror.to_s,
+                      quiet: !verbose)
       end
 
       Dir.chdir(mirror) do
         cmd = ['git', 'remote', verbose ? '--verbose' : nil, 'update', '--prune'].compact
-        if verbose
-          fail_pipe_on_error(cmd, quiet: !verbose)
-        else
-          # Because above operation might spit out a lot to stderr, we use this to swallow them
-          # and only display if the operation return non 0 exit code
-          fail_on_error(*cmd, quiet: !verbose)
-        end
+        fail_on_error(*cmd, quiet: !verbose)
       end
       reference_updated[repo_name] = true
     rescue RunnerExecutionRuntimeError => e

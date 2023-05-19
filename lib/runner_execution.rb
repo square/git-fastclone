@@ -20,34 +20,6 @@ module RunnerExecution
     end
   end
 
-  # Wrapper around open3.pipeline_r which fails on error.
-  # and stops users from invoking the shell by accident.
-  def fail_pipe_on_error(*cmd_list, quiet: false, **opts)
-    print_command('Running Pipeline:', cmd_list) unless quiet
-
-    env = opts.delete(:env) { {} }
-    raise ArgumentError, "The :env option must be a hash, not #{env.inspect}" unless env.is_a?(Hash)
-
-    cmd_list.map! { |cmd| shell_safe(cmd).unshift(env) }
-
-    output, *status_list = Open3.pipeline_r(*cmd_list, opts) do |out, wait_threads|
-      out_reader = Thread.new do
-        if quiet
-          output = out.read
-        else
-          # Output from pipeline should go to stdout and also get returned for
-          # processing if necessary.
-          output = tee(out, STDOUT)
-        end
-        out.close
-        output
-      end
-      [out_reader.value] + wait_threads.map(&:value)
-    end
-    exit_on_status(output, cmd_list, status_list, quiet: quiet)
-  end
-  module_function :fail_pipe_on_error
-
   # Runs a command that fails on error.
   # Uses popen2e wrapper. Handles bad statuses with potential for retries.
   def fail_on_error(*cmd, stdin_data: nil, binmode: false, quiet: false, **opts)
