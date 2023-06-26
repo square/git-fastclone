@@ -22,7 +22,7 @@ module RunnerExecution
 
   # Runs a command that fails on error.
   # Uses popen2e wrapper. Handles bad statuses with potential for retries.
-  def fail_on_error(*cmd, stdin_data: nil, binmode: false, quiet: false, **opts)
+  def fail_on_error(*cmd, stdin_data: nil, binmode: false, quiet: false, print_on_failure: false, **opts)
     print_command('Running Shell Safe Command:', [cmd]) unless quiet
     shell_safe_cmd = shell_safe(cmd)
     retry_times = opts[:retry] || 0
@@ -39,7 +39,9 @@ module RunnerExecution
     end
 
     # Get out with the status, good or bad.
-    exit_on_status(output, [shell_safe_cmd], [status], quiet: quiet)
+    # When quiet, we don't need to print the output, as it is already streamed from popen2e_wrapper
+    needs_print_on_failure = quiet && print_on_failure
+    exit_on_status(output, [shell_safe_cmd], [status], quiet: quiet, print_on_failure: needs_print_on_failure)
   end
   module_function :fail_on_error
 
@@ -155,20 +157,21 @@ module RunnerExecution
   # return code of the first one.
   #
   # Otherwise returns first argument (output)
-  def exit_on_status(output, cmd_list, status_list, quiet: false)
+  def exit_on_status(output, cmd_list, status_list, quiet: false, print_on_failure: false)
     status_list.each_index do |index|
       status = status_list[index]
       cmd = cmd_list[index]
-      check_status(cmd, status, output: output, quiet: quiet)
+      check_status(cmd, status, output: output, quiet: quiet, print_on_failure: print_on_failure)
     end
 
     output
   end
   module_function :exit_on_status
 
-  def check_status(cmd, status, output: nil, quiet: false)
+  def check_status(cmd, status, output: nil, quiet: false, print_on_failure: false)
     return if status.exited? && status.exitstatus == 0
 
+    logger.info(output) if print_on_failure
     # If we exited nonzero or abnormally, print debugging info and explode.
     if status.exited?
       logger.debug("Process Exited normally. Exit status:#{status.exitstatus}") unless quiet
