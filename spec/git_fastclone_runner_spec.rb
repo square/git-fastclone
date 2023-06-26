@@ -99,11 +99,11 @@ describe GitFastClone::Runner do
     it 'should clone correctly' do
       expect(subject).to receive(:fail_on_error).with(
         'git', 'checkout', '--quiet', 'PH',
-        { quiet: true }
+        { quiet: true, print_on_failure: false }
       ) { runner_execution_double }
       expect(subject).to receive(:fail_on_error).with(
         'git', 'clone', '--quiet', '--reference', '/cache', 'PH', '/pwd/.',
-        { quiet: true }
+        { quiet: true, print_on_failure: false }
       ) { runner_execution_double }
 
       subject.clone(placeholder_arg, placeholder_arg, '.', nil)
@@ -113,11 +113,11 @@ describe GitFastClone::Runner do
       subject.verbose = true
       expect(subject).to receive(:fail_on_error).with(
         'git', 'checkout', '--quiet', 'PH',
-        { quiet: false }
+        { quiet: false, print_on_failure: false }
       ) { runner_execution_double }
       expect(subject).to receive(:fail_on_error).with(
         'git', 'clone', '--verbose', '--reference', '/cache', 'PH', '/pwd/.',
-        { quiet: false }
+        { quiet: false, print_on_failure: false }
       ) { runner_execution_double }
 
       subject.clone(placeholder_arg, placeholder_arg, '.', nil)
@@ -126,7 +126,7 @@ describe GitFastClone::Runner do
     it 'should clone correctly with custom configs' do
       expect(subject).to receive(:fail_on_error).with(
         'git', 'clone', '--quiet', '--reference', '/cache', 'PH', '/pwd/.', '--config', 'config',
-        { quiet: true }
+        { quiet: true, print_on_failure: false}
       ) { runner_execution_double }
 
       subject.clone(placeholder_arg, nil, '.', 'config')

@@ -74,7 +74,7 @@ module GitFastClone
     DEFAULT_GIT_ALLOW_PROTOCOL = 'file:git:http:https:ssh'
 
     attr_accessor :reference_dir, :prefetch_submodules, :reference_updated, :reference_mutex,
-                  :options, :abs_clone_path, :using_local_repo, :verbose, :color,
+                  :options, :abs_clone_path, :using_local_repo, :verbose, :'print_git_errors', :color,
                   :flock_timeout_secs
 
     def initialize
@@ -99,6 +99,8 @@ module GitFastClone
       self.using_local_repo = false
 
       self.verbose = false
+
+      self.print_git_errors = false
 
       self.color = false
 
@@ -134,6 +136,10 @@ module GitFastClone
 
         opts.on('-v', '--verbose', 'Verbose mode') do
           self.verbose = true
+        end
+
+        opts.on('--print_git_errors', 'Print git command outputs when git command fails') do
+          self.print_git_errors = true
         end
 
         opts.on('-c', '--color', 'Display colored output') do
@@ -212,13 +218,13 @@ module GitFastClone
         clone_commands = ['git', 'clone', verbose ? '--verbose' : '--quiet']
         clone_commands << '--reference' << mirror.to_s << url.to_s << clone_dest
         clone_commands << '--config' << config.to_s unless config.nil?
-        fail_on_error(*clone_commands, quiet: !verbose)
+        fail_on_error(*clone_commands, quiet: !verbose, print_on_failure: print_git_errors)
       end
 
       # Only checkout if we're changing branches to a non-default branch
       if rev
         Dir.chdir(File.join(abs_clone_path, src_dir)) do
-          fail_on_error('git', 'checkout', '--quiet', rev.to_s, quiet: !verbose)
+          fail_on_error('git', 'checkout', '--quiet', rev.to_s, quiet: !verbose, print_on_failure: print_git_errors)
         end
       end
 
@@ -243,7 +249,7 @@ module GitFastClone
       submodule_url_list = []
       output = ''
       Dir.chdir(File.join(abs_clone_path, pwd).to_s) do
-        output = fail_on_error('git', 'submodule', 'init', quiet: !verbose)
+        output = fail_on_error('git', 'submodule', 'init', quiet: !verbose, print_on_failure: print_git_errors)
       end
 
       output.split("\n").each do |line|
@@ -263,7 +269,7 @@ module GitFastClone
           Dir.chdir(File.join(abs_clone_path, pwd).to_s) do
             cmd = ['git', 'submodule', verbose ? nil : '--quiet', 'update', '--reference', mirror.to_s,
                    submodule_path.to_s].compact
-            fail_on_error(*cmd, quiet: !verbose)
+            fail_on_error(*cmd, quiet: !verbose, print_on_failure: print_git_errors)
           end
         end
 
@@ -337,12 +343,12 @@ module GitFastClone
     def store_updated_repo(url, mirror, repo_name, fail_hard)
       unless Dir.exist?(mirror)
         fail_on_error('git', 'clone', verbose ? '--verbose' : '--quiet', '--mirror', url.to_s, mirror.to_s,
-                      quiet: !verbose)
+                      quiet: !verbose, print_on_failure: print_git_errors)
       end
 
       Dir.chdir(mirror) do
         cmd = ['git', 'remote', verbose ? '--verbose' : nil, 'update', '--prune'].compact
-        fail_on_error(*cmd, quiet: !verbose)
+        fail_on_error(*cmd, quiet: !verbose, print_on_failure: print_git_errors)
       end
       reference_updated[repo_name] = true
     rescue RunnerExecutionRuntimeError => e
