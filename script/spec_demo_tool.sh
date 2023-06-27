@@ -1,7 +1,7 @@
 #/bin/bash
 
-# This script is a sample script used in tests that exists with the exit code passed as the first argument
-# It prints all arguemnts if more than 2 params are passed
+# This script is a sample script used in integration tests that exits with the code passed as the first argument
+# Also, it prints all extra arguments
 
 if [ $# -gt 1 ]; then
   # {@:2} - Skip first argument, which is the exit code

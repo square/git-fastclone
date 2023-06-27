@@ -135,10 +135,12 @@ module GitFastClone
         end
 
         opts.on('-v', '--verbose', 'Verbose mode') do
+          puts '--print_git_errors is redundant when using --verbose' if print_git_errors
           self.verbose = true
         end
 
         opts.on('--print_git_errors', 'Print git output if a command fails') do
+          puts '--print_git_errors is redundant when using --verbose' if verbose
           self.print_git_errors = true
         end
 
