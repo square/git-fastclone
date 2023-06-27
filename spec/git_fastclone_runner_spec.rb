@@ -126,10 +126,25 @@ describe GitFastClone::Runner do
     it 'should clone correctly with custom configs' do
       expect(subject).to receive(:fail_on_error).with(
         'git', 'clone', '--quiet', '--reference', '/cache', 'PH', '/pwd/.', '--config', 'config',
-        { quiet: true, print_on_failure: false}
+        { quiet: true, print_on_failure: false }
       ) { runner_execution_double }
 
       subject.clone(placeholder_arg, nil, '.', 'config')
+    end
+
+    context 'with printing errors' do
+      before(:each) do
+        subject.print_git_errors = true
+      end
+
+      it 'prints failures' do
+        expect(subject).to receive(:fail_on_error).with(
+          'git', 'clone', '--quiet', '--reference', '/cache', 'PH', '/pwd/.', '--config', 'config',
+          { quiet: true, print_on_failure: true }
+        ) { runner_execution_double }
+
+        subject.clone(placeholder_arg, nil, '.', 'config')
+      end
     end
   end
 

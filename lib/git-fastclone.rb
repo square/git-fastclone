@@ -74,7 +74,7 @@ module GitFastClone
     DEFAULT_GIT_ALLOW_PROTOCOL = 'file:git:http:https:ssh'
 
     attr_accessor :reference_dir, :prefetch_submodules, :reference_updated, :reference_mutex,
-                  :options, :abs_clone_path, :using_local_repo, :verbose, :'print_git_errors', :color,
+                  :options, :abs_clone_path, :using_local_repo, :verbose, :print_git_errors, :color,
                   :flock_timeout_secs
 
     def initialize
@@ -138,7 +138,7 @@ module GitFastClone
           self.verbose = true
         end
 
-        opts.on('--print_git_errors', 'Print git command outputs when git command fails') do
+        opts.on('--print_git_errors', 'Print git output if a command fails') do
           self.print_git_errors = true
         end
 
@@ -224,7 +224,8 @@ module GitFastClone
       # Only checkout if we're changing branches to a non-default branch
       if rev
         Dir.chdir(File.join(abs_clone_path, src_dir)) do
-          fail_on_error('git', 'checkout', '--quiet', rev.to_s, quiet: !verbose, print_on_failure: print_git_errors)
+          fail_on_error('git', 'checkout', '--quiet', rev.to_s, quiet: !verbose,
+                                                                print_on_failure: print_git_errors)
         end
       end
 
@@ -249,7 +250,8 @@ module GitFastClone
       submodule_url_list = []
       output = ''
       Dir.chdir(File.join(abs_clone_path, pwd).to_s) do
-        output = fail_on_error('git', 'submodule', 'init', quiet: !verbose, print_on_failure: print_git_errors)
+        output = fail_on_error('git', 'submodule', 'init', quiet: !verbose,
+                                                           print_on_failure: print_git_errors)
       end
 
       output.split("\n").each do |line|
