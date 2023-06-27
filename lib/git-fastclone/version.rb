@@ -2,5 +2,5 @@
 
 # Version string for git-fastclone
 module GitFastCloneVersion
-  VERSION = '1.4.1'
+  VERSION = '1.4.2'
 end
