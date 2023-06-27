@@ -3,9 +3,12 @@
 # This script is a sample script used in integration tests that exits with the code passed as the first argument
 # Also, it prints all extra arguments
 
+exit_code="$1"
+
 if [ $# -gt 1 ]; then
-  # {@:2} - Skip first argument, which is the exit code
-  echo "${@:2}"
+  # Skip first argument, which is the exit code
+  shift
+  echo "$@"
 fi
 
-exit $1
+exit $exit_code
