@@ -77,7 +77,7 @@ Before accepting any pull requests, we need you to sign an [Individual Contribut
 Once landed, please reach out to any owner listed in https://rubygems.org/gems/git-fastclone and ask them to help publish the new version.
 
 
-Acknowledgements
+Acknowledgments
 ----------------
 [thoughtbot/terrapin][3] - jyurek and collaborators
 
