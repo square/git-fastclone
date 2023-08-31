@@ -271,8 +271,8 @@ module GitFastClone
       threads << Thread.new do
         with_git_mirror(submodule_url) do |mirror, _|
           fail_on_error(['cd', File.join(abs_clone_path, pwd).to_s], quiet: !verbose)
-          cmd = ['cd', File.join(abs_clone_path, pwd).to_s, '&&', 'git', 'submodule', verbose ? nil : '--quiet', 'update', '--reference', mirror.to_s,
-                  submodule_path.to_s].compact
+          cmd = ['cd', File.join(abs_clone_path, pwd).to_s, '&&', 'git', 'submodule',
+                 verbose ? nil : '--quiet', 'update', '--reference', mirror.to_s, submodule_path.to_s].compact
           fail_on_error(*cmd, quiet: !verbose, print_on_failure: print_git_errors)
         end
 
