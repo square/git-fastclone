@@ -404,7 +404,7 @@ describe GitFastClone::Runner do
       [
         ['git', 'clone', verbose ? '--verbose' : '--quiet', '--mirror', test_url_valid,
          test_reference_repo_dir],
-        ['git', 'remote', verbose ? '--verbose' : nil, 'update', '--prune'].compact
+        ['cd', test_reference_repo_dir, '&&', 'git', 'remote', verbose ? '--verbose' : nil, 'update', '--prune'].compact
       ]
     end
 
