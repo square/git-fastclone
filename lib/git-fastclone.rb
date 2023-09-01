@@ -248,6 +248,7 @@ module GitFastClone
 
       puts 'Updating submodules...' if verbose
 
+      threads = []
       submodule_url_list = []
       output = ''
       Dir.chdir(File.join(abs_clone_path, pwd).to_s) do
@@ -259,19 +260,23 @@ module GitFastClone
         submodule_path, submodule_url = parse_update_info(line)
         submodule_url_list << submodule_url
 
+        thread_update_submodule(submodule_url, submodule_path, threads, pwd)
+      end
 
+      update_submodule_reference(url, submodule_url_list)
+      threads.each(&:join)
+    end
+
+    def thread_update_submodule(submodule_url, submodule_path, threads, pwd)
+      threads << Thread.new do
         with_git_mirror(submodule_url) do |mirror, _|
-          Dir.chdir(File.join(abs_clone_path, pwd).to_s) do
-            cmd = ['git', 'submodule', verbose ? nil : '--quiet', 'update', '--reference', mirror.to_s,
-                   submodule_path.to_s].compact
-            fail_on_error(*cmd, quiet: !verbose, print_on_failure: print_git_errors)
-          end
+          cmd = ['cd', File.join(abs_clone_path, pwd).to_s, '&&', 'git', 'submodule',
+                 verbose ? nil : '--quiet', 'update', '--reference', mirror.to_s, submodule_path.to_s].compact
+          fail_on_error(*cmd, quiet: !verbose, print_on_failure: print_git_errors)
         end
 
         update_submodules(File.join(pwd, submodule_path), submodule_url)
       end
-
-      update_submodule_reference(url, submodule_url_list)
     end
 
     def with_reference_repo_lock(url, &block)
@@ -330,7 +335,8 @@ module GitFastClone
     # Grab the children in the event of a prefetch
     def prefetch(submodule_file)
       File.readlines(submodule_file).each do |line|
-        update_reference_repo(line.strip, false)
+        # We don't join these threads explicitly
+        Thread.new { update_reference_repo(line.strip, false) }
       end
     end
 
@@ -341,10 +347,9 @@ module GitFastClone
         fail_on_error('git', 'clone', verbose ? '--verbose' : '--quiet', '--mirror', url.to_s, mirror.to_s,
                       quiet: !verbose, print_on_failure: print_git_errors)
       end
-      Dir.chdir(mirror) do
-        cmd = ['git', 'remote', verbose ? '--verbose' : nil, 'update', '--prune'].compact
-        fail_on_error(*cmd, quiet: !verbose, print_on_failure: print_git_errors)
-      end
+
+      cmd = ['cd', mirror, '&&', 'git', 'remote', verbose ? '--verbose' : nil, 'update', '--prune'].compact
+      fail_on_error(*cmd, quiet: !verbose, print_on_failure: print_git_errors)
 
       reference_updated[repo_name] = true
     rescue RunnerExecutionRuntimeError => e
