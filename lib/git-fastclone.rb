@@ -225,9 +225,8 @@ module GitFastClone
 
       # Only checkout if we're changing branches to a non-default branch
       if rev
-        fail_on_error('git', 'checkout', '--quiet', rev.to_s, quiet: !verbose,
-                                                              print_on_failure: print_git_errors,
-                                                              chdir: File.join(abs_clone_path, src_dir))
+        fail_on_error('git', '-C', File.join(abs_clone_path, src_dir), 'checkout', '--quiet', rev.to_s, quiet: !verbose,
+                                                              print_on_failure: print_git_errors)
       end
 
       update_submodules(src_dir, url)
@@ -249,9 +248,15 @@ module GitFastClone
 
       threads = []
       submodule_url_list = []
+<<<<<<< Updated upstream
       output = fail_on_error('git', 'submodule', 'init', quiet: !verbose,
                                                          print_on_failure: print_git_errors,
                                                          chdir: File.join(abs_clone_path, pwd))
+=======
+      output = ''
+      output = fail_on_error('git', '-C', File.join(abs_clone_path, pwd), 'submodule', 'init', quiet: !verbose,
+                                                         print_on_failure: print_git_errors)
+>>>>>>> Stashed changes
 
       output.split("\n").each do |line|
         submodule_path, submodule_url = parse_update_info(line)
@@ -267,10 +272,9 @@ module GitFastClone
     def thread_update_submodule(submodule_url, submodule_path, threads, pwd)
       threads << Thread.new do
         with_git_mirror(submodule_url) do |mirror, _|
-          cmd = ['git', 'submodule',
+          cmd = ['git', '-C', File.join(abs_clone_path, pwd), 'submodule',
                  verbose ? nil : '--quiet', 'update', '--reference', mirror.to_s, submodule_path.to_s].compact
-          fail_on_error(*cmd, quiet: !verbose, print_on_failure: print_git_errors,
-                              chdir: File.join(abs_clone_path, pwd))
+          fail_on_error(*cmd, quiet: !verbose, print_on_failure: print_git_errors)
         end
 
         update_submodules(File.join(pwd, submodule_path), submodule_url)
@@ -346,8 +350,8 @@ module GitFastClone
                       quiet: !verbose, print_on_failure: print_git_errors)
       end
 
-      cmd = ['git', 'remote', verbose ? '--verbose' : nil, 'update', '--prune'].compact
-      fail_on_error(*cmd, quiet: !verbose, print_on_failure: print_git_errors, chdir: mirror)
+      cmd = ['git', '-C', mirror, 'remote', verbose ? '--verbose' : nil, 'update', '--prune'].compact
+      fail_on_error(*cmd, quiet: !verbose, print_on_failure: print_git_errors)
 
       reference_updated[repo_name] = true
     rescue RunnerExecutionRuntimeError => e
