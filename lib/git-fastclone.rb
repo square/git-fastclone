@@ -249,7 +249,6 @@ module GitFastClone
 
       threads = []
       submodule_url_list = []
-      output = ''
       output = fail_on_error('git', 'submodule', 'init', quiet: !verbose,
                                                          print_on_failure: print_git_errors,
                                                          chdir: File.join(abs_clone_path, pwd))
