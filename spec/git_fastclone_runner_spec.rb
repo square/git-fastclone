@@ -91,7 +91,6 @@ describe GitFastClone::Runner do
     before(:each) do
       allow(runner_execution_double).to receive(:fail_on_error) {}
       allow(Dir).to receive(:pwd) { '/pwd' }
-      allow(Dir).to receive(:chdir).and_yield
       allow(subject).to receive(:with_git_mirror).and_yield('/cache', 0)
       expect(subject).to receive(:clear_clone_dest_if_needed).once {}
     end
@@ -99,7 +98,7 @@ describe GitFastClone::Runner do
     it 'should clone correctly' do
       expect(subject).to receive(:fail_on_error).with(
         'git', 'checkout', '--quiet', 'PH',
-        { quiet: true, print_on_failure: false }
+        { chdir: '/pwd/.', print_on_failure: false, quiet: true }
       ) { runner_execution_double }
       expect(subject).to receive(:fail_on_error).with(
         'git', 'clone', '--quiet', '--reference', '/cache', 'PH', '/pwd/.',
@@ -113,7 +112,7 @@ describe GitFastClone::Runner do
       subject.verbose = true
       expect(subject).to receive(:fail_on_error).with(
         'git', 'checkout', '--quiet', 'PH',
-        { quiet: false, print_on_failure: false }
+        { chdir: '/pwd/.', print_on_failure: false, quiet: false }
       ) { runner_execution_double }
       expect(subject).to receive(:fail_on_error).with(
         'git', 'clone', '--verbose', '--reference', '/cache', 'PH', '/pwd/.',
@@ -338,7 +337,6 @@ describe GitFastClone::Runner do
 
     it 'should correctly update the hash' do
       allow(subject).to receive(:fail_on_error)
-      allow(Dir).to receive(:chdir) {}
 
       subject.reference_updated = placeholder_hash
       subject.store_updated_repo(placeholder_arg, placeholder_arg, placeholder_arg, false)
@@ -389,7 +387,6 @@ describe GitFastClone::Runner do
         expected_command = expected_commands.shift
         expect(command).to eq(expected_command)
       }
-      allow(Dir).to receive(:chdir).and_yield
 
       allow(subject).to receive(:print_formatted_error) {}
       allow(subject).to receive(:reference_repo_dir).and_return(test_reference_repo_dir)
@@ -404,7 +401,8 @@ describe GitFastClone::Runner do
       [
         ['git', 'clone', verbose ? '--verbose' : '--quiet', '--mirror', test_url_valid,
          test_reference_repo_dir],
-        ['git', 'remote', verbose ? '--verbose' : nil, 'update', '--prune'].compact
+        ['git', 'remote', verbose ? '--verbose' : nil, 'update',
+         '--prune'].compact
       ]
     end
 
