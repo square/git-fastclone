@@ -35,7 +35,7 @@ It aggressively updates these mirrors from origin and then clones from the mirro
 directory of your choosing. It always works recursively and multithreaded to get your checkout up as
 fast as possible.
 
-Detailed explanation [here][1].
+Detailed explanation [here](https://developer.squareup.com/blog/introducing-git-fastclone/).
 
 
 Usage
@@ -71,7 +71,7 @@ requests.
 When submitting code, please make every effort to follow existing conventions and style in order to
 keep the code as readable as possible.
 
-Before accepting any pull requests, we need you to sign an [Individual Contributor Agreement][2]
+Before accepting any pull requests, we need you to sign an [Individual Contributor Agreement](https://docs.google.com/a/squareup.com/forms/d/13WR8m5uZ2nAkJH41k7GdVBXAAbzDk00vxtEYjd6Imzg/viewform?formkey=dDViT2xzUHAwRkI3X3k5Z0lQM091OGc6MQ&ndplr=1)
 (Google form).
 
 Once landed, please reach out to any owner listed in https://rubygems.org/gems/git-fastclone and ask them to help publish the new version.
@@ -79,15 +79,10 @@ Once landed, please reach out to any owner listed in https://rubygems.org/gems/g
 
 Acknowledgements
 ----------------
-[thoughtbot/terrapin][3] - jyurek and collaborators
-
-[robolson][4]
-
-[ianchesal][5]
-
-[mtauraso][6]
-
-[chriseckhardt][7]
+* [robolson](https://github.com/robolson)
+* [ianchesal](https://github.com/ianchesal)
+* [mtauraso](https://github.com/mtauraso)
+* [chriseckhardt](https://github.com/chriseckhardt)
 
 
 License
@@ -105,11 +100,3 @@ License
     WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
     See the License for the specific language governing permissions and
     limitations under the License.
-
-[1]: https://corner.squareup.com/2015/11/fastclone.html
-[2]: https://docs.google.com/a/squareup.com/forms/d/13WR8m5uZ2nAkJH41k7GdVBXAAbzDk00vxtEYjd6Imzg/viewform?formkey=dDViT2xzUHAwRkI3X3k5Z0lQM091OGc6MQ&ndplr=1
-[3]: https://github.com/thoughtbot/terrapin
-[4]: https://github.com/robolson
-[5]: https://github.com/ianchesal
-[6]: https://github.com/mtauraso
-[7]: https://github.com/chriseckhardt
