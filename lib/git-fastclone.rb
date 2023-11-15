@@ -373,7 +373,8 @@ module GitFastClone
         /^fatal: pack has \d+ unresolved delta/,
         /^error: unable to read sha1 file of /,
         /^fatal: did not receive expected object/,
-        /^fatal: unable to read tree [a-z0-9]+\n^warning: Clone succeeded, but checkout failed/
+        /^fatal: unable to read tree [a-z0-9]+\n^warning: Clone succeeded, but checkout failed/,
+        /^fatal: Authentication failed/
       ]
       error.to_s =~ /.*#{Regexp.union(error_strings)}/m
     end
