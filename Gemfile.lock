@@ -50,6 +50,10 @@ GEM
     ruby-progressbar (1.13.0)
     unicode-display_width (2.5.0)
 
+PLATFORMS
+  arm64-darwin-23
+  x86_64-linux
+
 DEPENDENCIES
   bundler
   git-fastclone!
