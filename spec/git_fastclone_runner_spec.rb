@@ -308,12 +308,24 @@ describe GitFastClone::Runner do
 
   describe '.store_updated_repo' do
     context 'when fail_hard is true' do
-      it 'should raise a Runtime error and clear cache' do
+      it 'should raise a Runtime error and clear cache if there were no authentication errors' do
         status = double('status')
         allow(status).to receive(:exitstatus).and_return(1)
         ex = RunnerExecution::RunnerExecutionRuntimeError.new(status, 'cmd')
         allow(subject).to receive(:fail_on_error) { raise ex }
         expect(FileUtils).to receive(:remove_entry_secure).with(placeholder_arg, force: true)
+        expect do
+          subject.store_updated_repo(placeholder_arg, placeholder_arg, placeholder_arg, true)
+        end.to raise_error(ex)
+      end
+
+      it 'should raise a Runtime error and skip clearing the cache if there were authentication errors' do
+        status = double('status')
+        allow(status).to receive(:exitstatus).and_return(1)
+        ex = RunnerExecution::RunnerExecutionRuntimeError.new(status, 'cmd')
+        allow(ex).to receive(:output).and_return('fatal: Authentication failed')
+        allow(subject).to receive(:fail_on_error) { raise ex }
+        expect(FileUtils).to_not receive(:remove_entry_secure).with(placeholder_arg, force: true)
         expect do
           subject.store_updated_repo(placeholder_arg, placeholder_arg, placeholder_arg, true)
         end.to raise_error(ex)

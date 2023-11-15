@@ -110,7 +110,7 @@ module GitFastClone
     def run
       url, path, options = parse_inputs
 
-      require_relative './git-fastclone/version'
+      require_relative 'git-fastclone/version'
       msg = "git-fastclone #{GitFastCloneVersion::VERSION}"
       if color
         puts msg.yellow
@@ -354,8 +354,15 @@ module GitFastClone
       # To avoid corruption of the cache, if we failed to update or check out we remove
       # the cache directory entirely. This may cause the current clone to fail, but if the
       # underlying error from git is transient it will not affect future clones.
-      clear_cache(mirror, url)
+      #
+      # The only exception to this is authentication failures, because they are transient,
+      # usually due to either a remote server outage or a local credentials config problem.
+      clear_cache(mirror, url) unless auth_error?(e.output)
       raise e if fail_hard
+    end
+
+    def auth_error?(error)
+      error.to_s =~ /.*^fatal: Authentication failed/m
     end
 
     def retriable_error?(error)
@@ -366,7 +373,8 @@ module GitFastClone
         /^fatal: pack has \d+ unresolved delta/,
         /^error: unable to read sha1 file of /,
         /^fatal: did not receive expected object/,
-        /^fatal: unable to read tree [a-z0-9]+\n^warning: Clone succeeded, but checkout failed/
+        /^fatal: unable to read tree [a-z0-9]+\n^warning: Clone succeeded, but checkout failed/,
+        /^fatal: Authentication failed/
       ]
       error.to_s =~ /.*#{Regexp.union(error_strings)}/m
     end
