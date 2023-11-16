@@ -14,6 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+require 'english'
 require 'optparse'
 require 'fileutils'
 require 'timeout'
@@ -236,14 +237,19 @@ module GitFastClone
         clone_commands = ['git', 'clone', verbose ? '--verbose' : '--quiet']
         clone_commands << '--reference' << mirror.to_s << url.to_s << clone_dest
         clone_commands << '--config' << config.to_s unless config.nil?
-        fail_on_error(*clone_commands, quiet: !verbose, print_on_failure: print_git_errors)
+        fail_on_error(*clone_commands, quiet: !verbose, print_on_failure: print_git_errors,
+                                       env: { 'GIT_LFS_SKIP_SMUDGE' => '1' })
+
+        fail_on_error('git', 'lfs', 'dedup', quiet: !verbose, print_on_failure: print_git_errors,
+                                             chdir: File.join(abs_clone_path, src_dir))
       end
 
       # Only checkout if we're changing branches to a non-default branch
       if rev
         fail_on_error('git', 'checkout', '--quiet', rev.to_s, quiet: !verbose,
                                                               print_on_failure: print_git_errors,
-                                                              chdir: File.join(abs_clone_path, src_dir))
+                                                              chdir: File.join(abs_clone_path, src_dir),
+                                                              env: { 'GIT_LFS_SKIP_SMUDGE' => '1' })
       end
 
       update_submodules(src_dir, url)
@@ -354,6 +360,12 @@ module GitFastClone
       end
     end
 
+    def lfs_available?
+      # does `` spawn a shell needlessly? let's prefer to just spawn a process and take the exit code if possible
+      `command -v git-lfs >/dev/null`
+      $CHILD_STATUS.success?
+    end
+
     # Creates or updates the mirror repo then stores an indication
     # that this repo has been updated on this run of fastclone
     def store_updated_repo(url, mirror, repo_name, fail_hard, attempt_number)
@@ -366,6 +378,20 @@ module GitFastClone
 
       cmd = ['git', 'remote', verbose ? '--verbose' : nil, 'update', '--prune'].compact
       fail_on_error(*cmd, quiet: !verbose, print_on_failure: print_git_errors, chdir: mirror)
+
+      if lfs_available?
+        cmd = %w[git -c lfs.concurrenttransfers=24 lfs fetch]
+        env = {}
+        # TODO: these should be like --debug level, not --verbose, but they're useful for now
+        if verbose
+          env = { 'GIT_TRACE' => '1',
+                  'GIT_TRANSFER_TRACE' => '1',
+                  'GIT_LFS_SKIP_SMUDGE' => '1' }
+        end
+        # TODO: we have to also plumb in our remote and desired branch name into store_updated_repo(), so that
+        #       we're only fetching for the branches we care about
+        fail_on_error(*cmd, chdir: mirror, env: env)
+      end
 
       reference_updated[repo_name] = true
     rescue RunnerExecutionRuntimeError => e
