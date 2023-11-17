@@ -255,6 +255,9 @@ module GitFastClone
                                                               print_on_failure: print_git_errors,
                                                               chdir: File.join(abs_clone_path, src_dir),
                                                               env: { 'GIT_LFS_SKIP_SMUDGE' => '1' })
+        fail_on_error('git', 'lfs', 'pull', quiet: !verbose,
+                                            print_on_failure: print_git_errors,
+                                            chdir: File.join(abs_clone_path, src_dir))
       end
 
       update_submodules(src_dir, url)
