@@ -240,9 +240,7 @@ module GitFastClone
         fail_on_error(*clone_commands, quiet: !verbose, print_on_failure: print_git_errors,
                                        env: { 'GIT_LFS_SKIP_SMUDGE' => '1' })
 
-        fail_on_error('git', 'lfs', 'update',
-                      chdir: File.join(abs_clone_path, src_dir))
-        fail_on_error('git', 'lfs', 'install',
+        fail_on_error('git', 'lfs', 'install', '--local',
                       chdir: File.join(abs_clone_path, src_dir))
         fail_on_error('git', 'lfs', 'pull',
                       chdir: File.join(abs_clone_path, src_dir))
