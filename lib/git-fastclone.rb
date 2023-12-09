@@ -48,12 +48,12 @@ module GitFastClone
     module_function :reference_repo_dir
 
     def reference_filename(filename)
-      portation_character = if RbConfig::CONFIG['host_os'] =~ /mswin|msys|mingw|cygwin|bccwin|wince|emc/
-                              '_'
+      separator = if RbConfig::CONFIG['host_os'] =~ /mswin|msys|mingw|cygwin|bccwin|wince|emc/
+                              '__'
                             else
                               ':'
                             end
-      "#{portation_character}#{filename}"
+      "#{separator}#{filename}"
     end
     module_function :reference_filename
 
