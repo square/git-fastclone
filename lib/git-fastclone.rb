@@ -63,7 +63,7 @@ module GitFastClone
     module_function :reference_repo_submodule_file
 
     def reference_repo_lock_file(url, reference_dir, using_local_repo)
-      lock_file_name = "#{reference_repo_dir(url, reference_dir, using_local_repo)}#{reference_filename('lock')}" # rubocop:disable Layout/LineLength
+      lock_file_name = "#{reference_repo_dir(url, reference_dir, using_local_repo)}#{reference_filename('lock')}"
       File.open(lock_file_name, File::RDWR | File::CREAT, 0o644)
     end
     module_function :reference_repo_lock_file
