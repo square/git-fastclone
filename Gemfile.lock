@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    git-fastclone (1.4.4)
+    git-fastclone (1.4.5)
       colorize
 
 GEM
@@ -51,6 +51,7 @@ GEM
     unicode-display_width (2.5.0)
 
 PLATFORMS
+  arm64-darwin-22
   arm64-darwin-23
   x64-mingw-ucrt
   x86_64-linux
