@@ -52,6 +52,7 @@ GEM
 
 PLATFORMS
   arm64-darwin-23
+  x64-mingw-ucrt
   x86_64-linux
 
 DEPENDENCIES
@@ -62,4 +63,4 @@ DEPENDENCIES
   rubocop
 
 BUNDLED WITH
-   2.4.20
+   2.4.22

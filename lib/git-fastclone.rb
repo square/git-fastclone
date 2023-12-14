@@ -49,10 +49,10 @@ module GitFastClone
 
     def reference_filename(filename)
       separator = if RbConfig::CONFIG['host_os'] =~ /mswin|msys|mingw|cygwin|bccwin|wince|emc/
-                              '__'
-                            else
-                              ':'
-                            end
+                    '__'
+                  else
+                    ':'
+                  end
       "#{separator}#{filename}"
     end
     module_function :reference_filename
