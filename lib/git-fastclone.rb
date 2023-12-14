@@ -47,13 +47,23 @@ module GitFastClone
     end
     module_function :reference_repo_dir
 
+    def reference_filename(filename)
+      separator = if RbConfig::CONFIG['host_os'] =~ /mswin|msys|mingw|cygwin|bccwin|wince|emc/
+                    '__'
+                  else
+                    ':'
+                  end
+      "#{separator}#{filename}"
+    end
+    module_function :reference_filename
+
     def reference_repo_submodule_file(url, reference_dir, using_local_repo)
-      "#{reference_repo_dir(url, reference_dir, using_local_repo)}:submodules.txt"
+      "#{reference_repo_dir(url, reference_dir, using_local_repo)}#{reference_filename('submodules.txt')}"
     end
     module_function :reference_repo_submodule_file
 
     def reference_repo_lock_file(url, reference_dir, using_local_repo)
-      lock_file_name = "#{reference_repo_dir(url, reference_dir, using_local_repo)}:lock"
+      lock_file_name = "#{reference_repo_dir(url, reference_dir, using_local_repo)}#{reference_filename('lock')}"
       File.open(lock_file_name, File::RDWR | File::CREAT, 0o644)
     end
     module_function :reference_repo_lock_file

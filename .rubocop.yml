@@ -15,9 +15,6 @@ Lint/EmptyBlock:
 Metrics/ClassLength:
   Max: 10000
 
-Metrics/LineLength:
-  Max: 110
-
 Metrics/AbcSize:
   Enabled: false
 
