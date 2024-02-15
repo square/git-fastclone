@@ -166,6 +166,11 @@ module GitFastClone
                 Default is 0 which waits indefinitely.') do |timeout_secs|
           self.flock_timeout_secs = timeout_secs.to_i
         end
+
+        opts.on('--pre-clone-hook command',
+                'An optional command that should be invoked before cloning mirror repo') do |command|
+          options[:pre_clone_hook] = command
+        end
       end.parse!
     end
 
@@ -324,7 +329,7 @@ module GitFastClone
     # overall checkout or not. When we pre-fetch based off of cached information,
     # fail_hard is false. When we fetch based off info in a repository directly,
     # fail_hard is true.
-    def update_reference_repo(url, fail_hard)
+    def update_reference_repo(url, fail_hard, attempt_number)
       repo_name = reference_repo_name(url)
       mirror = reference_repo_dir(url, reference_dir, using_local_repo)
 
@@ -333,24 +338,26 @@ module GitFastClone
         submodule_file = reference_repo_submodule_file(url, reference_dir, using_local_repo)
 
         # if prefetch is on, then grab children immediately to frontload network requests
-        prefetch(submodule_file) if File.exist?(submodule_file) && prefetch_submodules
+        prefetch(submodule_file, attempt_number) if File.exist?(submodule_file) && prefetch_submodules
 
         # Store the fact that our repo has been updated if necessary
-        store_updated_repo(url, mirror, repo_name, fail_hard) unless reference_updated[repo_name]
+        store_updated_repo(url, mirror, repo_name, fail_hard, attempt_number) unless reference_updated[repo_name]
       end
     end
 
     # Grab the children in the event of a prefetch
-    def prefetch(submodule_file)
+    def prefetch(submodule_file, attempt_number)
       File.readlines(submodule_file).each do |line|
         # We don't join these threads explicitly
-        Thread.new { update_reference_repo(line.strip, false) }
+        Thread.new { update_reference_repo(line.strip, false, attempt_number) }
       end
     end
 
     # Creates or updates the mirror repo then stores an indication
     # that this repo has been updated on this run of fastclone
-    def store_updated_repo(url, mirror, repo_name, fail_hard)
+    def store_updated_repo(url, mirror, repo_name, fail_hard, attempt_number)
+      trigger_pre_clone_hook(url, mirror, attempt_number)
+      # If pre_clone_hook correctly creates a mirror directory, we don't want to clone, but just update it
       unless Dir.exist?(mirror)
         fail_on_error('git', 'clone', verbose ? '--verbose' : '--quiet', '--mirror', url.to_s, mirror.to_s,
                       quiet: !verbose, print_on_failure: print_git_errors)
@@ -414,7 +421,7 @@ module GitFastClone
       retries_allowed ||= 1
       attempt_number ||= 0
 
-      update_reference_repo(url, true)
+      update_reference_repo(url, true, attempt_number)
       dir = reference_repo_dir(url, reference_dir, using_local_repo)
 
       # Sometimes remote updates involve re-packing objects on a different thread
@@ -440,6 +447,12 @@ module GitFastClone
 
     def usage
       'Usage: git fastclone [options] <git-url> [path]'
+    end
+
+    private def trigger_pre_clone_hook(url, mirror, attempt_number)
+      return if Dir.exist?(mirror) || !options.include?(:pre_clone_hook)
+
+      popen2e_wrapper(options[:pre_clone_hook], url, mirror, attempt_number.to_s, quiet: !verbose)
     end
   end
 end

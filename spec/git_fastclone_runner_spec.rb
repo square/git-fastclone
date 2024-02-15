@@ -145,6 +145,54 @@ describe GitFastClone::Runner do
         subject.clone(placeholder_arg, nil, '.', 'config')
       end
     end
+
+    context 'with pre-clone-hook errors' do
+      let(:pre_clone_hook) { '/some/command' }
+      before(:each) do
+        subject.options[:pre_clone_hook] = pre_clone_hook
+        subject.reference_dir = placeholder_arg
+        allow(subject).to receive(:with_git_mirror).and_call_original
+        allow(subject).to receive(:with_reference_repo_lock) do |_url, &block|
+          block.call
+        end
+      end
+
+      it 'invokes hook command' do
+        allow(subject).to receive(:fail_on_error)
+        expect(subject).to receive(:popen2e_wrapper).with(
+          pre_clone_hook, 'PH', 'PH/PH', '0',
+          { quiet: true }
+        ) { runner_execution_double }
+
+        subject.clone(placeholder_arg, nil, '.', 'config')
+      end
+
+      it 'does not call clone if hook creates mirror' do
+        allow(subject).to receive(:popen2e_wrapper).with(
+          pre_clone_hook, 'PH', 'PH/PH', '0',
+          { quiet: true }
+        ) do
+          # Emulate creating mirror dir
+          allow(Dir).to receive(:exist?).with('PH/PH').and_return(true)
+        end
+        allow(subject).to receive(:fail_on_error)
+
+        subject.clone(placeholder_arg, nil, '.', 'config')
+      end
+
+      it 'does not call pre-clone hook if mirror is already created' do
+        # Emulate already created mirror dir
+        allow(Dir).to receive(:exist?).and_call_original
+        allow(Dir).to receive(:exist?).with('PH/PH').and_return(true)
+        expect(subject).not_to receive(:popen2e_wrapper).with(
+          pre_clone_hook, 'PH', 'PH/PH', '0',
+          { quiet: true }
+        )
+        allow(subject).to receive(:fail_on_error)
+
+        subject.clone(placeholder_arg, nil, '.', 'config')
+      end
+    end
   end
 
   describe '.clear_clone_dest_if_needed' do
@@ -249,7 +297,7 @@ describe GitFastClone::Runner do
         allow(File).to receive(:exist?) { true }
         subject.prefetch_submodules = true
         subject.reference_dir = placeholder_arg
-        subject.update_reference_repo(test_url_valid, false)
+        subject.update_reference_repo(test_url_valid, false, 0)
       end
     end
 
@@ -262,7 +310,7 @@ describe GitFastClone::Runner do
         allow(File).to receive(:exist?) { true }
         subject.prefetch_submodules = false
         subject.reference_dir = placeholder_arg
-        subject.update_reference_repo(placeholder_arg, false)
+        subject.update_reference_repo(placeholder_arg, false, 0)
       end
     end
 
@@ -277,7 +325,7 @@ describe GitFastClone::Runner do
         allow(subject).to receive(:reference_repo_dir) { placeholder_arg }
         subject.reference_updated = placeholder_hash
         subject.prefetch_submodules = false
-        subject.update_reference_repo(placeholder_arg, false)
+        subject.update_reference_repo(placeholder_arg, false, 0)
       end
     end
 
@@ -291,7 +339,7 @@ describe GitFastClone::Runner do
         subject.reference_updated = placeholder_hash
         subject.reference_dir = placeholder_arg
         subject.prefetch_submodules = false
-        subject.update_reference_repo(placeholder_arg, false)
+        subject.update_reference_repo(placeholder_arg, false, 0)
       end
     end
   end
@@ -302,7 +350,7 @@ describe GitFastClone::Runner do
 
       allow(File).to receive(:readlines) { %w[1 2 3] }
       subject.prefetch_submodules = true
-      subject.prefetch(placeholder_arg)
+      subject.prefetch(placeholder_arg, 0)
     end
   end
 
@@ -315,7 +363,7 @@ describe GitFastClone::Runner do
         allow(subject).to receive(:fail_on_error) { raise ex }
         expect(FileUtils).to receive(:remove_entry_secure).with(placeholder_arg, force: true)
         expect do
-          subject.store_updated_repo(placeholder_arg, placeholder_arg, placeholder_arg, true)
+          subject.store_updated_repo(placeholder_arg, placeholder_arg, placeholder_arg, true, 0)
         end.to raise_error(ex)
       end
 
@@ -327,7 +375,7 @@ describe GitFastClone::Runner do
         allow(subject).to receive(:fail_on_error) { raise ex }
         expect(FileUtils).to_not receive(:remove_entry_secure).with(placeholder_arg, force: true)
         expect do
-          subject.store_updated_repo(placeholder_arg, placeholder_arg, placeholder_arg, true)
+          subject.store_updated_repo(placeholder_arg, placeholder_arg, placeholder_arg, true, 0)
         end.to raise_error(ex)
       end
     end
@@ -340,7 +388,7 @@ describe GitFastClone::Runner do
         allow(subject).to receive(:fail_on_error) { raise ex }
         expect(FileUtils).to receive(:remove_entry_secure).with(placeholder_arg, force: true)
         expect do
-          subject.store_updated_repo(placeholder_arg, placeholder_arg, placeholder_arg, false)
+          subject.store_updated_repo(placeholder_arg, placeholder_arg, placeholder_arg, false, 0)
         end.to_not raise_error
       end
     end
@@ -351,7 +399,7 @@ describe GitFastClone::Runner do
       allow(subject).to receive(:fail_on_error)
 
       subject.reference_updated = placeholder_hash
-      subject.store_updated_repo(placeholder_arg, placeholder_arg, placeholder_arg, false)
+      subject.store_updated_repo(placeholder_arg, placeholder_arg, placeholder_arg, false, 0)
       expect(subject.reference_updated).to eq(placeholder_arg => true)
     end
   end
