@@ -356,7 +356,7 @@ module GitFastClone
     # Creates or updates the mirror repo then stores an indication
     # that this repo has been updated on this run of fastclone
     def store_updated_repo(url, mirror, repo_name, fail_hard, attempt_number)
-      trigger_pre_clone_hook(url, mirror, attempt_number) unless unless Dir.exist?(mirror)
+      trigger_pre_clone_hook(url, mirror, attempt_number) unless Dir.exist?(mirror)
       # If pre_clone_hook correctly creates a mirror directory, we don't want to clone, but just update it
       unless Dir.exist?(mirror)
         fail_on_error('git', 'clone', verbose ? '--verbose' : '--quiet', '--mirror', url.to_s, mirror.to_s,
