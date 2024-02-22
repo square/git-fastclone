@@ -43,16 +43,28 @@ Usage
     gem install git-fastclone
     git fastclone [options] <git-repo-url>
 
-    -b, --branch <branch>   Clone a specific branch
-    -v, --verbose           Verbose mode
-    -c, --color             Display colored output
-        --config CONFIG     Git config applied to the cloned repo
-        --lock-timeout N    Timeout in seconds to acquire a lock on any reference repo.
+    -b, --branch BRANCH              Checkout this branch rather than the default
+    -v, --verbose                    Verbose mode
+        --print_git_errors           Print git output if a command fails
+    -c, --color                      Display colored output
+        --config CONFIG              Git config applied to the cloned repo
+        --lock-timeout N             Timeout in seconds to acquire a lock on any reference repo.
+                Default is 0 which waits indefinitely.
+        --pre-clone-hook command     An optional command that should be invoked before cloning mirror repo
 
 Change the default `REFERENCE_REPO_DIR` environment variable if necessary.
 
 Cygwin users need to add `~/bin` to PATH.
 
+
+Hooks
+-----
+
+- `pre-clone-hook` is invoked right before cloning a new mirror repo, which gives a change to prepopulate git's mirror from a different source.
+The hook is invoked with given arguments:
+1. cloning repo url
+1. path to the repo mirror location
+1. attempt number, 0-indexed
 
 How to test?
 ------------
