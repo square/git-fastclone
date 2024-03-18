@@ -167,9 +167,9 @@ module GitFastClone
           self.flock_timeout_secs = timeout_secs.to_i
         end
 
-        opts.on('--pre-clone-hook command',
-                'An optional command that should be invoked before cloning mirror repo') do |command|
-          options[:pre_clone_hook] = command
+        opts.on('--pre-clone-hook script_file',
+                'An optional file that should be invoked before cloning mirror repo. No-op when a file is missing') do |script_file|
+          options[:pre_clone_hook] = script_file
         end
       end.parse!
     end
@@ -452,7 +452,13 @@ module GitFastClone
     private def trigger_pre_clone_hook_if_needed(url, mirror, attempt_number)
       return if Dir.exist?(mirror) || !options.include?(:pre_clone_hook)
 
-      popen2e_wrapper(options[:pre_clone_hook], url.to_s, mirror.to_s, attempt_number.to_s, quiet: !verbose)
+      hook_command = options[:pre_clone_hook]
+      unless File.exist?(File.expand_path(hook_command))
+        puts 'pre_clone_hook script is missing' if verbose
+        return
+      end
+
+      popen2e_wrapper(hook_command, url.to_s, mirror.to_s, attempt_number.to_s, quiet: !verbose)
     end
   end
 end
