@@ -162,13 +162,14 @@ module GitFastClone
           options[:config] = config
         end
 
-        opts.on('--lock-timeout N', 'Timeout in seconds to acquire a lock on any reference repo.
-                Default is 0 which waits indefinitely.') do |timeout_secs|
+        opts.on('--lock-timeout N', 'Timeout in seconds to acquire a lock on any reference repo.',
+                'Default is 0 which waits indefinitely.') do |timeout_secs|
           self.flock_timeout_secs = timeout_secs.to_i
         end
 
         opts.on('--pre-clone-hook script_file',
-                'An optional file that should be invoked before cloning mirror repo. No-op when a file is missing') do |script_file|
+                'An optional file that should be invoked before cloning mirror repo',
+                'No-op when a file is missing') do |script_file|
           options[:pre_clone_hook] = script_file
         end
       end.parse!
