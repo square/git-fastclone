@@ -146,11 +146,13 @@ describe GitFastClone::Runner do
       end
     end
 
-    context 'with pre-clone-hook errors' do
+    context 'with pre-clone-hook' do
       let(:pre_clone_hook) { '/some/command' }
       before(:each) do
         subject.options[:pre_clone_hook] = pre_clone_hook
         subject.reference_dir = placeholder_arg
+        allow(File).to receive(:exist?).and_call_original
+        allow(File).to receive(:exist?).with(pre_clone_hook).and_return(true)
         allow(subject).to receive(:with_git_mirror).and_call_original
         allow(subject).to receive(:with_reference_repo_lock) do |_url, &block|
           block.call
@@ -191,6 +193,22 @@ describe GitFastClone::Runner do
         allow(subject).to receive(:fail_on_error)
 
         subject.clone(placeholder_arg, nil, '.', 'config')
+      end
+
+      context 'non-existing script' do
+        before(:each) do
+          allow(File).to receive(:exist?).with(pre_clone_hook).and_return(false)
+        end
+
+        it 'does not invoke hook command' do
+          allow(subject).to receive(:fail_on_error)
+          expect(subject).not_to receive(:popen2e_wrapper).with(
+            pre_clone_hook, 'PH', 'PH/PH', '0',
+            { quiet: true }
+          )
+
+          subject.clone(placeholder_arg, nil, '.', 'config')
+        end
       end
     end
   end
