@@ -34,8 +34,8 @@ Gem::Specification.new do |gem|
   gem.homepage      = 'http://square.github.io/git-fastclone/'
   gem.license       = 'Apache'
 
-  gem.required_ruby_version = '>= 2.7'
+  gem.required_ruby_version = '>= 3.2'
 
-  gem.add_runtime_dependency 'colorize'
+  gem.add_dependency 'colorize'
   gem.metadata['rubygems_mfa_required'] = 'true'
 end

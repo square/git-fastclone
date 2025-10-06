@@ -45,7 +45,6 @@ describe GitFastClone::Runner do
     it 'should initialize properly' do
       stub_const('GitFastClone::DEFAULT_REFERENCE_REPO_DIR', 'new_dir')
 
-      expect(Hash).to respond_to(:new).with(2).arguments
       expect(GitFastClone::DEFAULT_REFERENCE_REPO_DIR).to eq('new_dir')
       expect(subject.prefetch_submodules).to eq(true)
       expect(subject.reference_mutex).to eq({})

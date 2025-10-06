@@ -293,13 +293,13 @@ module GitFastClone
       end
     end
 
-    def with_reference_repo_lock(url, &block)
+    def with_reference_repo_lock(url, &)
       # Sane POSIX implementations remove exclusive flocks when a process is terminated or killed
       # We block here indefinitely. Waiting for other git-fastclone processes to release the lock.
       # With the default timeout of 0 we will wait forever, this can be overridden on the command line.
       lockfile = reference_repo_lock_file(url, reference_dir, using_local_repo)
       Timeout.timeout(flock_timeout_secs) { lockfile.flock(File::LOCK_EX) }
-      with_reference_repo_thread_lock(url, &block)
+      with_reference_repo_thread_lock(url, &)
     ensure
       # Not strictly necessary to do this unlock as an ensure. If ever exception is caught outside this
       # primitive, ensure protection may come in handy.
@@ -307,12 +307,12 @@ module GitFastClone
       lockfile.close
     end
 
-    def with_reference_repo_thread_lock(url, &block)
+    def with_reference_repo_thread_lock(url, &)
       # We also need thread level locking because pre-fetch means multiple threads can
       # attempt to update the same repository from a single git-fastclone process
       # file locks in posix are tracked per process, not per userland thread.
       # This gives us the equivalent of pthread_mutex around these accesses.
-      reference_mutex[reference_repo_name(url)].synchronize(&block)
+      reference_mutex[reference_repo_name(url)].synchronize(&)
     end
 
     def update_submodule_reference(url, submodule_url_list)

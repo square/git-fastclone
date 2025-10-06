@@ -12,10 +12,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        ruby-version: ["2.7.4", "3.0.6", "3.1.4", "3.2.2", "3.3.0-preview3"]
+        ruby-version: ["3.2.2", "3.3.9", "3.4.0", "3.5.0-preview1"]
         experimental: [false]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Set up Ruby
         # To automatically get bug fixes and new Ruby versions for ruby/setup-ruby,
         # change this to (see https://github.com/ruby/setup-ruby#versioning):
