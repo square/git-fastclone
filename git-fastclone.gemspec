@@ -36,6 +36,6 @@ Gem::Specification.new do |gem|
 
   gem.required_ruby_version = '>= 3.2'
 
-  gem.add_runtime_dependency 'colorize'
+  gem.add_dependency 'colorize'
   gem.metadata['rubygems_mfa_required'] = 'true'
 end
