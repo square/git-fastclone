@@ -13,6 +13,7 @@ GEM
     json (2.15.0)
     language_server-protocol (3.17.0.5)
     lint_roller (1.1.0)
+    logger (1.7.0)
     parallel (1.27.0)
     parser (3.3.9.0)
       ast (~> 2.4.1)
@@ -64,6 +65,7 @@ PLATFORMS
 DEPENDENCIES
   bundler
   git-fastclone!
+  logger
   rake
   rspec
   rubocop
