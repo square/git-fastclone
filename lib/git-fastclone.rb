@@ -211,7 +211,7 @@ module GitFastClone
       if sparse_paths && !options[:branch]
         msg = "Error: --branch is required when using --sparse-paths\n" \
               "Sparse checkouts need an explicit branch/revision to checkout.\n" \
-              "Usage: git-fastclone --sparse-paths <paths> --branch <branch> <url>"
+              'Usage: git-fastclone --sparse-paths <paths> --branch <branch> <url>'
         raise msg.red if color
 
         raise msg
@@ -252,7 +252,7 @@ module GitFastClone
         clear_clone_dest_if_needed(attempt_number, clone_dest)
 
         clone_commands = ['git', 'clone', verbose ? '--verbose' : '--quiet']
-        clone_commands.concat(['--no-checkout', '--shared']) if sparse_paths
+        clone_commands.push('--no-checkout', '--shared') if sparse_paths
         # For sparse checkouts with --shared, clone directly from the local mirror
         # For normal clones, use --reference and clone from the remote URL
         if sparse_paths
