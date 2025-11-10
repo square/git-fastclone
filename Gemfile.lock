@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    git-fastclone (1.5.1)
+    git-fastclone (1.6.0.pre1)
       colorize
 
 GEM
