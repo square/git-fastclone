@@ -14,13 +14,13 @@ Why fastclone?
 Doing lots of repeated checkouts on a specific machine?
 
 | Repository | 1st Fastclone | 2nd Fastclone | git clone | cp -R |
-| -----------|---------------|---------------|-----------|-------|
-| angular.js |    8s         |     3s        | 6s        | 0.5s  |
-| bootstrap  |    26s        |     3s        | 11s       | 0.2s  |
-| gradle     |    25s        |     9s        | 19s       | 6.2s  |
-| linux      |    4m 53s     |     1m 6s     | 3m 51s    | 29s   |
-| react.js   |    18s        |     3s        | 8s        | 0.5s  |
-| tensorflow |    19s        |     4s        | 8s        | 1.5s  |
+| ---------- | ------------- | ------------- | --------- | ----- |
+| angular.js | 8s            | 3s            | 6s        | 0.5s  |
+| bootstrap  | 26s           | 3s            | 11s       | 0.2s  |
+| gradle     | 25s           | 9s            | 19s       | 6.2s  |
+| linux      | 4m 53s        | 1m 6s         | 3m 51s    | 29s   |
+| react.js   | 18s           | 3s            | 8s        | 0.5s  |
+| tensorflow | 19s           | 4s            | 8s        | 1.5s  |
 
 Above times captured using `time` without verbose mode.
 
@@ -51,6 +51,8 @@ Usage
         --lock-timeout N             Timeout in seconds to acquire a lock on any reference repo.
                 Default is 0 which waits indefinitely.
         --pre-clone-hook command     An optional command that should be invoked before cloning mirror repo
+        --sparse-paths PATHS         Comma-separated list of paths for sparse checkout.
+                                     Enables sparse checkout mode using git sparse-checkout.
 
 Change the default `REFERENCE_REPO_DIR` environment variable if necessary.
 
@@ -65,6 +67,11 @@ The hook is invoked with given arguments:
 1. cloning repo url
 1. path to the repo mirror location
 1. attempt number, 0-indexed
+
+Sparse checkout support
+-----------------------
+
+In passing `--sparse-paths`, git-fastclone will instead perform a sparse checkout, where the passed list of paths will be set up as patterns. This can be useful if you're interested only in a subset of paths in the repository.
 
 How to test?
 ------------
