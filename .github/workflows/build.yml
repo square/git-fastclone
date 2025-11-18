@@ -12,8 +12,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        ruby-version: ["3.2.2", "3.3.9", "3.4.0", "3.5.0-preview1"]
-        experimental: [false]
+        ruby-version: ["3.2", "3.3", "3.4", "3.5.0-preview1"]
     steps:
       - uses: actions/checkout@v5
       - name: Set up Ruby
