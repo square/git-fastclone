@@ -252,8 +252,8 @@ module GitFastClone
         clear_clone_dest_if_needed(attempt_number, clone_dest)
 
         clone_commands = ['git', 'clone', verbose ? '--verbose' : '--quiet']
-        clone_commands.push('--no-checkout', '--shared') if sparse_paths
-        # For sparse checkouts with --shared, clone directly from the local mirror
+        clone_commands.push('--no-checkout') if sparse_paths
+        # For sparse checkouts, clone directly from the local mirror and skip the actual checkout process
         # For normal clones, use --reference and clone from the remote URL
         if sparse_paths
           clone_commands << mirror.to_s << clone_dest
