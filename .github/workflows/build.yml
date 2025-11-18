@@ -8,11 +8,12 @@ on:
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.runner }}
     strategy:
       fail-fast: false
       matrix:
         ruby-version: ["3.2", "3.3", "3.4", "3.5.0-preview1"]
+        runner: [macos-latest, ubuntu-latest]
     steps:
       - uses: actions/checkout@v5
       - name: Set up Ruby
