@@ -85,7 +85,7 @@ module GitFastClone
 
     attr_accessor :reference_dir, :prefetch_submodules, :reference_updated, :reference_mutex,
                   :options, :abs_clone_path, :using_local_repo, :verbose, :print_git_errors, :color,
-                  :flock_timeout_secs
+                  :flock_timeout_secs, :sparse_paths
 
     def initialize
       # Prefetch reference repos for submodules we've seen before
@@ -115,6 +115,8 @@ module GitFastClone
       self.color = false
 
       self.flock_timeout_secs = 0
+
+      self.sparse_paths = nil
     end
 
     def run
@@ -172,6 +174,12 @@ module GitFastClone
                 'No-op when a file is missing') do |script_file|
           options[:pre_clone_hook] = script_file
         end
+
+        opts.on('--sparse-paths PATHS',
+                'Comma-separated list of paths for sparse checkout.',
+                'Enables sparse checkout mode using git sparse-checkout.') do |paths|
+          self.sparse_paths = paths.split(',').map(&:strip)
+        end
       end.parse!
     end
 
@@ -194,6 +202,16 @@ module GitFastClone
 
       if Dir.exist?(path)
         msg = "Clone destination #{File.join(abs_clone_path, path)} already exists!"
+        raise msg.red if color
+
+        raise msg
+      end
+
+      # Validate that --branch is specified when using --sparse-paths
+      if sparse_paths && !options[:branch]
+        msg = "Error: --branch is required when using --sparse-paths\n" \
+              "Sparse checkouts need an explicit branch/revision to checkout.\n" \
+              'Usage: git-fastclone --sparse-paths <paths> --branch <branch> <url>'
         raise msg.red if color
 
         raise msg
@@ -234,13 +252,23 @@ module GitFastClone
         clear_clone_dest_if_needed(attempt_number, clone_dest)
 
         clone_commands = ['git', 'clone', verbose ? '--verbose' : '--quiet']
-        clone_commands << '--reference' << mirror.to_s << url.to_s << clone_dest
+        # For sparse checkouts, clone directly from the local mirror and skip the actual checkout process
+        # For normal clones, use --reference and clone from the remote URL
+        if sparse_paths
+          clone_commands.push('--no-checkout')
+          clone_commands << mirror.to_s << clone_dest
+        else
+          clone_commands << '--reference' << mirror.to_s << url.to_s << clone_dest
+        end
         clone_commands << '--config' << config.to_s unless config.nil?
         fail_on_error(*clone_commands, quiet: !verbose, print_on_failure: print_git_errors)
+
+        # Configure sparse checkout if enabled
+        perform_sparse_checkout(clone_dest, rev) if sparse_paths
       end
 
-      # Only checkout if we're changing branches to a non-default branch
-      if rev
+      # Only checkout if we're changing branches to a non-default branch (for non-sparse clones)
+      if !sparse_paths && rev
         fail_on_error('git', 'checkout', '--quiet', rev.to_s, quiet: !verbose,
                                                               print_on_failure: print_git_errors,
                                                               chdir: File.join(abs_clone_path, src_dir))
@@ -256,6 +284,22 @@ module GitFastClone
       else
         puts msg
       end
+    end
+
+    def perform_sparse_checkout(clone_dest, rev)
+      puts 'Configuring sparse checkout...' if verbose
+
+      # Initialize sparse checkout with cone mode
+      fail_on_error('git', 'sparse-checkout', 'init', '--cone',
+                    quiet: !verbose, print_on_failure: print_git_errors, chdir: clone_dest)
+
+      # Set the sparse paths
+      fail_on_error('git', 'sparse-checkout', 'set', *sparse_paths,
+                    quiet: !verbose, print_on_failure: print_git_errors, chdir: clone_dest)
+
+      # Checkout the specified branch/revision
+      fail_on_error('git', 'checkout', '--quiet', rev.to_s,
+                    quiet: !verbose, print_on_failure: print_git_errors, chdir: clone_dest)
     end
 
     def update_submodules(pwd, url)
