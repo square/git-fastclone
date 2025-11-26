@@ -145,6 +145,47 @@ describe GitFastClone::Runner do
       end
     end
 
+    context 'with sparse checkout' do
+      before(:each) do
+        subject.sparse_paths = %w[path1 path2]
+      end
+
+      it 'should clone with --no-checkout and --shared flags' do
+        expect(subject).to receive(:fail_on_error).with(
+          'git', 'clone', '--quiet', '--no-checkout', '--shared', '/cache', '/pwd/.',
+          { quiet: true, print_on_failure: false }
+        ) { runner_execution_double }
+        expect(subject).to receive(:perform_sparse_checkout).with('/pwd/.', 'PH')
+
+        subject.clone(placeholder_arg, 'PH', '.', nil)
+      end
+
+      it 'should clone with verbose mode and --shared flag' do
+        subject.verbose = true
+        expect(subject).to receive(:fail_on_error).with(
+          'git', 'clone', '--verbose', '--no-checkout', '--shared', '/cache', '/pwd/.',
+          { quiet: false, print_on_failure: false }
+        ) { runner_execution_double }
+        expect(subject).to receive(:perform_sparse_checkout).with('/pwd/.', 'PH')
+
+        subject.clone(placeholder_arg, 'PH', '.', nil)
+      end
+
+      it 'should not perform regular checkout when sparse checkout is enabled' do
+        expect(subject).to receive(:fail_on_error).with(
+          'git', 'clone', '--quiet', '--no-checkout', '--shared', '/cache', '/pwd/.',
+          { quiet: true, print_on_failure: false }
+        ) { runner_execution_double }
+        expect(subject).to receive(:perform_sparse_checkout).with('/pwd/.', 'PH')
+        expect(subject).not_to receive(:fail_on_error).with(
+          'git', 'checkout', '--quiet', 'PH',
+          anything
+        )
+
+        subject.clone(placeholder_arg, 'PH', '.', nil)
+      end
+    end
+
     context 'with pre-clone-hook' do
       let(:pre_clone_hook) { '/some/command' }
       before(:each) do

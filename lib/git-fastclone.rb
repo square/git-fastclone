@@ -255,7 +255,7 @@ module GitFastClone
         # For sparse checkouts, clone directly from the local mirror and skip the actual checkout process
         # For normal clones, use --reference and clone from the remote URL
         if sparse_paths
-          clone_commands.push('--no-checkout')
+          clone_commands.push('--no-checkout', '--shared')
           clone_commands << mirror.to_s << clone_dest
         else
           clone_commands << '--reference' << mirror.to_s << url.to_s << clone_dest
