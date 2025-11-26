@@ -253,6 +253,8 @@ module GitFastClone
 
         clone_commands = ['git', 'clone', verbose ? '--verbose' : '--quiet']
         # For sparse checkouts, clone directly from the local mirror and skip the actual checkout process
+        # --shared is included so that the checkout remains fast even if the reference and destination directories
+        #          live on different filesystem volumes.
         # For normal clones, use --reference and clone from the remote URL
         if sparse_paths
           clone_commands.push('--no-checkout', '--shared')
